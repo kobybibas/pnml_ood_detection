@@ -1,0 +1,28 @@
+session_name: cifar_isun
+windows:
+- window_name: cifar_isun
+  layout: tiled
+  shell_command_before:
+    - cd ~/pnml_ood/src
+    - source ~/.bashrc
+  panes:
+    - shell_command:
+      - sleep 0m
+      - python main.py -testset cifar10 -prefix fc2_w_odin_ -test_start_idx 0 -test_end_idx 2999
+    - shell_command:
+      - sleep 1m
+      - python main.py -testset isun -prefix fc2_w_odin_ -test_start_idx 0 -test_end_idx 2999
+    - shell_command:
+      - sleep 4m
+      - python main.py -testset cifar10 -prefix fc2_w_odin_ -test_start_idx 3000 -test_end_idx 5999
+    - shell_command:
+      - sleep 7m
+      - python main.py -testset isun -prefix fc2_w_odin_ -test_start_idx 3000 -test_end_idx 5999
+    - shell_command:
+      - sleep 10m
+      - python main.py -testset cifar10 -prefix fc2_w_odin_ -test_start_idx 6000 -test_end_idx 8999
+    - shell_command:
+      - sleep 12m
+      - python main.py -testset isun -prefix fc2_w_odin_ -test_start_idx 6000 -test_end_idx 8999
+
+

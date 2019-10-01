@@ -1,3 +1,8 @@
+.idea/*
+*.pth
+*.npy
+*.pt
+output/*
 
 # Created by https://www.gitignore.io/api/images
 # Edit at https://www.gitignore.io/?templates=images
