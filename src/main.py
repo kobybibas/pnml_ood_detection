@@ -65,12 +65,15 @@ def run_experiment(args: dict):
     params_init_training['debug_flags'] = params['debug_flags']
     model_erm = execute_basic_training(model_base, dataloaders, params_init_training, experiment_h)
 
+    # todo: preprocess here:
+
     # ################
     # # Freeze layers
     # logger.info('Freeze layer: %d' % params['freeze_layer'])
     # model_erm = freeze_model_layers(model_erm, params['freeze_layer'])
     params_preprocess = params['preprocess']
-    np.save('../output/cifar100_train_labels.npy', dataloaders['train'].dataset.targets)
+
+    # todo: extract feaures flag
     if params['is_split_model'] is True:
         dataloaders['train'].dataset, dataloaders['test'].dataset = extract_features(model_erm, dataloaders,
                                                                                      params_preprocess['is_preprocess'],
@@ -86,9 +89,36 @@ def run_experiment(args: dict):
             np.save(file_name, dataloader.dataset.data.numpy())
         np.save(os.path.join('..', 'output', '{}_train_labels.npy'.format(experiment_h.trainset_name)),
                 dataloaders['train'].dataset.targets)
+    # todo: odin baseline flag
+    # Run odin baseline
+    from tqdm import tqdm
+    import torch
+    import torch.nn.functional as F
 
+    temper = params_preprocess['temperature_preprocess']
+    model_erm.eval()
+    max_prob_list = []
+    for images, labels in tqdm(dataloaders['test']):
+        images = images.cuda() if torch.cuda.is_available() else images
+        labels = labels.cuda() if torch.cuda.is_available() else labels
+
+        outputs = model_erm(images)
+        prob = F.softmax(outputs / temper, dim=-1)
+        max_prob, _ = torch.max(prob, axis=1)
+
+        max_prob_list.append(max_prob.detach().cpu())
+    torch.cuda.empty_cache()
+    max_prob_np = torch.cat(max_prob_list).cpu().numpy()
+    file_name = os.path.join('..', 'output',
+                             '{}_{}_{}{}.npy'.format(args['experiment_type'], experiment_h.testset_name, 'test',
+                                                     '_odin_baseline_max_prob'))
+    logger.info('Saving to {}'.format(file_name))
+    np.save(file_name, max_prob_np)
     return
 
+    # todo: leave one out flag
+
+    # todo: remove the following
     ############################
     # Iterate over test dataset
     logger.info('Execute pNML')

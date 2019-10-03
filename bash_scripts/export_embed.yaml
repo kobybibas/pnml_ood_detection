@@ -13,13 +13,13 @@ windows:
       - python main.py -t densenet_cifar10 -testset LSUN -is_preprocess true
       - python main.py -t densenet_cifar10 -testset LSUN_resize -is_preprocess true
       - python main.py -t densenet_cifar10 -testset iSUN -is_preprocess true
-      #
-      - python main.py -t densenet_cifar10 -testset cifar10
-      - python main.py -t densenet_cifar10 -testset Imagenet
-      - python main.py -t densenet_cifar10 -testset Imagenet_resize
-      - python main.py -t densenet_cifar10 -testset LSUN
-      - python main.py -t densenet_cifar10 -testset LSUN_resize
-      - python main.py -t densenet_cifar10 -testset iSUN
+#      #
+#      - python main.py -t densenet_cifar10 -testset cifar10
+#      - python main.py -t densenet_cifar10 -testset Imagenet
+#      - python main.py -t densenet_cifar10 -testset Imagenet_resize
+#      - python main.py -t densenet_cifar10 -testset LSUN
+#      - python main.py -t densenet_cifar10 -testset LSUN_resize
+#      - python main.py -t densenet_cifar10 -testset iSUN
       #
     - shell_command:
       - sleep 1m
@@ -30,12 +30,12 @@ windows:
       - python main.py -t densenet_cifar100 -testset LSUN_resize -is_preprocess true
       - python main.py -t densenet_cifar100 -testset iSUN -is_preprocess true
       #
-      - python main.py -t densenet_cifar100 -testset cifar100
-      - python main.py -t densenet_cifar100 -testset Imagenet
-      - python main.py -t densenet_cifar100 -testset Imagenet_resize
-      - python main.py -t densenet_cifar100 -testset LSUN
-      - python main.py -t densenet_cifar100 -testset LSUN_resize
-      - python main.py -t densenet_cifar100 -testset iSUN
+#      - python main.py -t densenet_cifar100 -testset cifar100
+#      - python main.py -t densenet_cifar100 -testset Imagenet
+#      - python main.py -t densenet_cifar100 -testset Imagenet_resize
+#      - python main.py -t densenet_cifar100 -testset LSUN
+#      - python main.py -t densenet_cifar100 -testset LSUN_resize
+#      - python main.py -t densenet_cifar100 -testset iSUN
       #
 
 
