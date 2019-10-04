@@ -2,14 +2,14 @@ import argparse
 import json
 import os
 
-import numpy as np
 from loguru import logger
 
-from dataset_utilities import extract_features
 from experimnet_utilities import Experiment
-from pnml_utilities import execute_pnml_on_testset
+from experimnet_utilities import experiment_name_valid
+from odin_utilities import execute_odin_baseline, perturbate_dataset
+from pnml_utilities import extract_features
 from result_tracker_utilities import ResultTracker
-from train_utilities import execute_basic_training
+from train_utilities import load_pretrained_model
 
 """
 Example of running:
@@ -59,124 +59,64 @@ def run_experiment(args: dict):
     dataloaders = experiment_h.get_dataloaders(data_folder)
 
     ################
-    # Run basic training- so the base model will be in the same conditions as NML model
-    model_base = experiment_h.get_model()
-    params_init_training = params['initial_training']
-    params_init_training['debug_flags'] = params['debug_flags']
-    model_erm = execute_basic_training(model_base, dataloaders, params_init_training, experiment_h)
+    # Load pretrained model
+    model = experiment_h.get_model()
+    model = load_pretrained_model(model, params['pretrained_model_path'], dataloaders,
+                                  is_test=params['eval_pretrained'])
 
-    # todo: preprocess here:
+    if params['odin']['is_odin'] is True:
+        logger.info('Execute dataset perturbation')
+        dataloaders['test'] = perturbate_dataset(model, dataloaders['test'],
+                                                 params['odin']['magnitude'], params['odin']['temperature'])
+    if params['pnml']['is_pnml'] is True:
+        logger.info('Execute pNML')
+        extract_features(model, dataloaders, experiment_h, tracker)
 
-    # ################
-    # # Freeze layers
-    # logger.info('Freeze layer: %d' % params['freeze_layer'])
-    # model_erm = freeze_model_layers(model_erm, params['freeze_layer'])
-    params_preprocess = params['preprocess']
-
-    # todo: extract feaures flag
-    if params['is_split_model'] is True:
-        dataloaders['train'].dataset, dataloaders['test'].dataset = extract_features(model_erm, dataloaders,
-                                                                                     params_preprocess['is_preprocess'],
-                                                                                     params_preprocess[
-                                                                                         'temperature_preprocess'],
-                                                                                     params_preprocess['magnitude'])
-        for set_type, dataloader in dataloaders.items():
-            set_name = experiment_h.trainset_name if set_type == 'train' else experiment_h.testset_name
-            file_name = os.path.join('..', 'output',
-                                     '{}_{}_{}{}.npy'.format(args['experiment_type'], set_name, set_type,
-                                                             '_odin' if params_preprocess['is_preprocess'] else ''))
-            logger.info('Saving to {}'.format(file_name))
-            np.save(file_name, dataloader.dataset.data.numpy())
-        np.save(os.path.join('..', 'output', '{}_train_labels.npy'.format(experiment_h.trainset_name)),
-                dataloaders['train'].dataset.targets)
-    # todo: odin baseline flag
-    # Run odin baseline
-    from tqdm import tqdm
-    import torch
-    import torch.nn.functional as F
-
-    temper = params_preprocess['temperature_preprocess']
-    model_erm.eval()
-    max_prob_list = []
-    for images, labels in tqdm(dataloaders['test']):
-        images = images.cuda() if torch.cuda.is_available() else images
-        labels = labels.cuda() if torch.cuda.is_available() else labels
-
-        outputs = model_erm(images)
-        prob = F.softmax(outputs / temper, dim=-1)
-        max_prob, _ = torch.max(prob, axis=1)
-
-        max_prob_list.append(max_prob.detach().cpu())
-    torch.cuda.empty_cache()
-    max_prob_np = torch.cat(max_prob_list).cpu().numpy()
-    file_name = os.path.join('..', 'output',
-                             '{}_{}_{}{}.npy'.format(args['experiment_type'], experiment_h.testset_name, 'test',
-                                                     '_odin_baseline_max_prob'))
-    logger.info('Saving to {}'.format(file_name))
-    np.save(file_name, max_prob_np)
-    return
+    if params['odin']['is_odin'] is True:
+        logger.info('Execute ODIN')
+        execute_odin_baseline(model, dataloaders['test'], params['odin']['temperature'], experiment_h, tracker)
 
     # todo: leave one out flag
 
-    # todo: remove the following
-    ############################
-    # Iterate over test dataset
-    logger.info('Execute pNML')
-    params_fit_to_sample = params['fit_to_sample']
-    params_fit_to_sample['debug_flags'] = params['debug_flags']
-    execute_pnml_on_testset(model_erm, experiment_h, params_fit_to_sample, params_preprocess, dataloaders, tracker)
-    logger.info('Finish All!')
+    logger.info('Finished!')
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Applications of Deep PNML')
     parser.add_argument('-t', '--experiment_type', default='densenet_cifar10',
+                        choices=experiment_name_valid,
                         help='Type of experiment to execute',
                         type=str)
     parser.add_argument('-testset',
                         help='Testset to evaluate',
                         type=str)
-    parser.add_argument('-epochs',
-                        help='Epochs for fine-tuning',
-                        type=int)
-    parser.add_argument('-lr',
-                        help='Learning rate for fine-tuning',
-                        type=int)
     parser.add_argument('-prefix',
                         default='',
-                        help='output directory name prefix',
+                        help='Output directory name prefix',
                         type=str)
     parser.add_argument('-num_workers',
-                        help='CPU workers',
+                        help='CPU workers for dataloader',
                         type=int)
     parser.add_argument('-temperature',
-                        help='Scale the logits',
+                        help='Scale of logits',
                         type=float)
-    parser.add_argument('-is_preprocess',
-                        help='whether to preprocess',
+    parser.add_argument('-is_odin',
+                        help='whether to execute ODIN baseline',
                         type=lambda s: s.lower() in ['true', 't', 'yes', '1'])
-    parser.add_argument('-test_start_idx',
-                        help='First test index to evaluate',
-                        type=int)
-    parser.add_argument('-test_end_idx',
-                        help='Final test index to evaluate',
-                        type=int)
+    parser.add_argument('-is_pnml',
+                        help='whether to execute pNML scheme',
+                        type=lambda s: s.lower() in ['true', 't', 'yes', '1'])
 
     args = vars(parser.parse_args())
 
-    # Available experiment_type:
-    #   'pnml_cifar10'
-    #   'random_labels'
-    #   'out_of_dist_svhn'
-    #   'out_of_dist_noise'
-    #   'pnml_mnist'
-    #   'pnml_cifar10_lenet'
-
+    # Available experiment_type
     # 'densenet_cifar10'
+    # 'densenet_cifar100'
+    # 'resnet_cifar10'
+    # 'resnet_cifar100'
 
     run_experiment(args)
     print('Finish experiment')
 
     # To run odin baselines:
-    # python main.py -testset isun -is_preprocess True -epochs 0 -prefix baseline_odin_
-    # python main.py -testset cifar10 -is_preprocess True  -epochs 0 -prefix baseline_odin_
+    # python main.py -testset isun -is_odin True -is_pnml False prefix baseline_odin_

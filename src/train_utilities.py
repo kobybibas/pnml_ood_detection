@@ -1,16 +1,14 @@
-import logging
 import os
-import sys
 import time
+from collections import OrderedDict
 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from torch import nn
-from collections import OrderedDict
-
-from torch.nn import Parameter
 from loguru import logger
+from torch import nn
+from torch.nn import Parameter
+from tqdm import tqdm
 
 
 def load_my_state_dict(own_state, state_dict):
@@ -187,6 +185,48 @@ def eval_single_sample(model, test_sample_data, temperature: float = 1.0):
     prob = F.softmax(output / temperature, dim=-1)
     prob = prob.cpu().detach().numpy().round(16).tolist()[0]
     return prob, pred
+
+
+def load_pretrained_model(model: nn.Module, pretrained_path: str, dataloaders: dict, is_test=True):
+    logger.info('Load pretrained model')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    if pretrained_path.endswith('densenet10.pth') or pretrained_path.endswith('densenet100.pth'):
+        model_loaded = torch.load(pretrained_path, map_location=device)
+        model_loaded = model_loaded['state_dict'] if isinstance(model_loaded, dict) else model_loaded.state_dict()
+        state_dict = load_my_state_dict(model.state_dict(), model_loaded)
+        model.load_state_dict(state_dict)
+    elif pretrained_path == 'wrn28_10_cifar10':
+        pass
+        # model_loaded = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
+        # model.load_state_dict(model_loaded.state_dict())
+    elif pretrained_path == 'wrn28_10_cifar100':
+        pass
+        # model_loaded = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
+        # model.load_state_dict(model_loaded.state_dict())
+    model.to(device)
+    if is_test is True:
+        logger.info('Eval test_in_dist dataloader')
+        criterion = nn.CrossEntropyLoss(reduction='sum')
+        model.eval()
+        test_loss = 0
+        correct = 0
+        with torch.no_grad():
+            for data, labels in tqdm(dataloaders['test_in_dist']):
+                data, labels = data.to(device), labels.to(device)
+
+                outputs = model(data)
+                loss = criterion(outputs, labels)
+                test_loss += loss.item()  # loss sum for all the batch
+                _, predicted = torch.max(outputs.data, 1)
+                correct += (predicted == labels).sum().item()
+
+        test_acc = correct / len(dataloaders['test_in_dist'].dataset)
+        test_loss /= len(dataloaders['test_in_dist'].dataset)
+        logger.info(
+            'Pretrained model: [Acc Error Loss]=[{:.2f}% {:.2f}% {:.3f}]'.format(100 * test_acc,
+                                                                                 100 - 100 * test_acc,
+                                                                                 test_loss))
+    return model
 
 
 def execute_basic_training(model_base, dataloaders, params_train, experiment_h):

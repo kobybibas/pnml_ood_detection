@@ -1,13 +1,20 @@
 import os
+import types
+
+from loguru import logger
+from pytorchcv.model_provider import get_model as ptcv_get_model
 
 from dataset_utilities import create_cifar10_dataloaders, create_cifar100_dataloaders
 from dataset_utilities import create_image_folder_trainloader
 from dataset_utilities import dataloaders_noise
-from densnet_splitted import DensNetSplit
-from mpl import Net
-from resnet import resnet20, load_pretrained_resnet20_cifar10_model
-from wide_resnet import WideResNet
-from densenet import DenseNet3
+from feature_extractor_utilities import DensNetFeatureExtractor
+
+experiment_name_valid = [
+    'densenet_cifar10',
+    'densenet_cifar100',
+    'resnet_cifar10',
+    'resnet_cifar100'
+]
 
 testsets_name = [
     # Tiny - ImageNet(crop)
@@ -25,9 +32,8 @@ testsets_name = [
 
 class Experiment:
     def __init__(self, exp_type: str, params: dict):
-        if exp_type not in ['densenet_cifar10',
-                            'densenet_cifar100'
-                            ]:
+        if exp_type not in experiment_name_valid:
+            logger.error('Experiment name {} is not valid'.format(exp_type))
             raise NameError('No experiment type: %s' % type)
         self.params = params
         self.exp_type = exp_type
@@ -35,11 +41,8 @@ class Experiment:
         self.trainset_name = ''
         self.testset_name = ''
 
-
     def get_params(self):
-        debug_flags = self.params['debug_flags']
         self.params = self.params[self.exp_type]
-        self.params['debug_flags'] = debug_flags
         self.executed_get_params = True
         return self.params
 
@@ -48,17 +51,19 @@ class Experiment:
             _ = self.get_params()
 
         # Load trainset
-        trainloader, testloader = None, None
+        trainloader, testloader, testloader_in_distribution = None, None, None
         if self.exp_type.endswith('cifar10'):
             self.trainset_name = 'cifar10'
             trainloader, testloader_cifar10, _ = create_cifar10_dataloaders(data_folder,
                                                                             self.params['batch_size'],
                                                                             self.params['num_workers'])
+            testloader_in_distribution = testloader_cifar10
         elif self.exp_type.endswith('cifar100'):
             self.trainset_name = 'cifar100'
             trainloader, testloader_cifar100, _ = create_cifar100_dataloaders(data_folder,
                                                                               self.params['batch_size'],
                                                                               self.params['num_workers'])
+            testloader_in_distribution = testloader_cifar100
         else:
             ValueError('Trainset is not available')
 
@@ -104,35 +109,45 @@ class Experiment:
         assert trainloader is not None
         assert testloader is not None
 
-        dataloaders = {'train': trainloader, 'test': testloader}
+        dataloaders = {'train': trainloader, 'test': testloader, 'test_in_dist': testloader_in_distribution}
         return dataloaders
 
     def get_model(self):
 
+        # Densnet
         if self.exp_type.startswith('densenet'):
-            num_classes = 10 if self.exp_type.endswith('10') else 100
-            if self.params['is_split_model'] is True:
+            if self.exp_type == 'densenet_cifar10':
+                model = ptcv_get_model("densenet100_k12_cifar10", pretrained=True)
+            elif self.exp_type == 'densenet_cifar100':
+                model = ptcv_get_model("densenet100_k12_cifar100", pretrained=True)
+            # todo: use ptcv
 
-                model = DensNetSplit(depth=100, growth_rate=12, num_classes=num_classes)
-                model.set_feature_extractor_layer(self.params['feature_extractor_layer'])
-            else:
-                model = DenseNet3(depth=100, growth_rate=12, num_classes=num_classes)
+            num_classes = 100 if self.exp_type.endswith('_cifar100') else 10
+            model = DensNetFeatureExtractor(depth=100, growth_rate=12, num_classes=num_classes)
 
-        elif self.exp_type == 'pnml_cifar10':
-            model = load_pretrained_resnet20_cifar10_model(resnet20())
-        elif self.exp_type == 'random_labels':
-            model = WideResNet()
-        elif self.exp_type == 'out_of_dist_svhn':
-            model = load_pretrained_resnet20_cifar10_model(resnet20())
-        elif self.exp_type == 'out_of_dist_noise':
-            model = load_pretrained_resnet20_cifar10_model(resnet20())
-        elif self.exp_type == 'pnml_mnist':
-            model = Net()
-        elif self.exp_type == 'adversarial':
-            model = load_pretrained_resnet20_cifar10_model(resnet20())
+        # Resnet
+        elif self.exp_type.startswith('resnet'):
+            if self.exp_type == 'resnet_cifar10':
+                model = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
+            elif self.exp_type == 'resnet_cifar100':
+                model = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
+
+            # Add feature extractor method
+            def my_forward(self, x):
+                x = self.features(x)
+                x = x.view(x.size(0), -1)
+                self.features_out = x.clone()
+                x = self.output(x)
+                return x
+
+            def get_features(self):
+                return self.features_out
+
+            model.forward = types.MethodType(my_forward, model)
+            model.get_features = types.MethodType(get_features, model)
+            # model = WideResNetFeatureExtractor(num_classes=num_classes)
         else:
-            raise NameError('No experiment type: %s' % self.exp_type)
-
+            raise NameError('No model for experiment type: %s' % self.exp_type)
         return model
 
     def get_exp_name(self):

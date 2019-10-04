@@ -1,7 +1,6 @@
 import copy
-import os
-import os.path
 from glob import glob
+from os import path as osp
 from time import time
 
 import numpy as np
@@ -11,7 +10,6 @@ from loguru import logger
 from torch.utils import data
 from torchvision import transforms, datasets
 from torchvision.datasets.folder import default_loader
-from tqdm import tqdm
 
 from adversarial_utilities import create_adversarial_sign_dataset
 from dataset_classes import NoiseDataset
@@ -88,7 +86,7 @@ def create_svhn_dataloaders(data_dir: str = './data', batch_size: int = 128, num
                                   shuffle=False,
                                   num_workers=num_workers)
 
-    data_dir = os.path.join(data_dir, 'svhn')
+    data_dir = osp.join(data_dir, 'svhn')
     testset = datasets.SVHN(root=data_dir,
                             split='test',
                             download=True,
@@ -187,9 +185,9 @@ def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128,
 class ImageFolderOOD(datasets.VisionDataset):
     def __init__(self, root, *args, **kwargs):
         super().__init__(root, *args, **kwargs)
-        img_path_list = glob(os.path.join(root, '*', '*.jpeg')) + \
-                        glob(os.path.join(root, '*', '*.png')) + \
-                        glob(os.path.join(root, '*', '*.jpg'))
+        img_path_list = glob(osp.join(root, '*', '*.jpeg')) + \
+                        glob(osp.join(root, '*', '*.png')) + \
+                        glob(osp.join(root, '*', '*.jpg'))
         if len(img_path_list) == 0:
             logger.error('Dataset was not downloaded.')
             ValueError('Failed on ImageFolderOOD')
@@ -346,14 +344,14 @@ class CIFAR10Adversarial(datasets.CIFAR10):
         self.adversarial_sign_dataset_path = adversarial_sign_dataset_path
         self.epsilon = epsilon
         for index in range(self.test_data.shape[0]):
-            sign = np.load(os.path.join(self.adversarial_sign_dataset_path, str(index) + '.npy'))
+            sign = np.load(osp.join(self.adversarial_sign_dataset_path, str(index) + '.npy'))
             sign = np.transpose(sign, (1, 2, 0))
             self.test_data[index] = np.clip(self.test_data[index] + (epsilon * 255) * sign, 0, 255)
 
 
 def create_adversarial_cifar10_dataloaders(data_dir: str = './data',
-                                           adversarial_dir: str = os.path.join('data',
-                                                                               'adversarial_sign'),
+                                           adversarial_dir: str = osp.join('data',
+                                                                           'adversarial_sign'),
                                            epsilon: float = 0.05,
                                            batch_size: int = 128,
                                            num_workers: int = 4):
@@ -420,82 +418,50 @@ class FeaturesDataset(datasets.VisionDataset):
     def __len__(self):
         return len(self.data)
 
-
-def extract_features(model, dataloaders: dict, is_preprocess: bool = False,
-                     temper: float = 1000.0,
-                     noise_magnitude: float = 0.0014):
-    # Extract features from train and test
-
-    model.convert_to_feature_extractor()
-    model = model.cuda() if torch.cuda.is_available() else model
-    features_datasets_dict = {}
-    for set_type in ['train', 'test']:
-        if set_type == 'test' and is_preprocess is True:
-            continue
-        time_start = time()
-
-        features_list = []
-        labels_list = []
-
-        for images, labels in tqdm(dataloaders[set_type]):
-            images = images.cuda() if torch.cuda.is_available() else images
-            labels = labels.cuda() if torch.cuda.is_available() else labels
-
-            features = model(images)
-
-            features_list.append(features.cpu())
-            labels_list.append(labels.cpu())
-
-        features_datasets_dict[set_type] = FeaturesDataset(features_list,
-                                                           labels_list,
-                                                           transform=transforms.Compose([
-                                                               transforms.Lambda(lambda x: x)]))
-        torch.cuda.empty_cache()
-        logger.debug('feature extraction {} in {:.2f}'.format(set_type, time() - time_start))
-
-    if is_preprocess is True:
-        norm = [63.0 / 255.0, 62.1 / 255.0, 66.7 / 255.0]
-        features_list, labels_list = [], []
-        criterion = torch.nn.CrossEntropyLoss()
-        time_start = time()
-        for inputs, labels_org in tqdm(dataloaders['test']):
-            inputs = inputs.cuda() if torch.cuda.is_available() else inputs
-            inputs = inputs.requires_grad_()
-            outputs = model.forward_super(inputs)
-
-            # Using temperature scaling
-            outputs = outputs / temper
-
-            # Calculating the perturbation we need to add, that is,
-            # the sign of gradient of cross entropy loss w.r.t. input
-            labels = torch.argmax(outputs, axis=1)
-            loss = criterion(outputs, labels)
-            loss.backward()
-
-            # Normalizing the gradient to binary in {0, 1}
-            gradient = torch.ge(inputs.grad.data, 0)
-            gradient = (gradient.float() - 0.5) * 2
-
-            # Normalizing the gradient to the same space of image
-            gradient[:, 0] = (gradient[:, 0]) / (norm[0])
-            gradient[:, 1] = (gradient[:, 1]) / (norm[1])
-            gradient[:, 2] = (gradient[:, 2]) / (norm[2])
-            # Adding small perturbations to images
-
-            inputs_temp = torch.add(inputs.data, -noise_magnitude, gradient)
-            features = model(inputs_temp)
-
-            features_list.append(features.cpu())
-            labels_list.append(labels_org.cpu())
-
-        features_datasets_dict['test'] = FeaturesDataset(features_list,
-                                                         labels_list,
-                                                         transform=transforms.Compose([
-                                                             transforms.Lambda(lambda x: x)]))
-
-        logger.debug('feature extraction with is_preprocess. {:.2f} sec'.format(time() - time_start))
-
-    torch.cuda.empty_cache()
-    model.convert_to_classifier()
-
-    return features_datasets_dict['train'], features_datasets_dict['test']
+# def preprocess(model, dataloaders: dict, is_preprocess: bool = False,
+#                temper: float = 1000.0,
+#                noise_magnitude: float = 0.0014):
+#     if is_preprocess is True:
+#         norm = [63.0 / 255.0, 62.1 / 255.0, 66.7 / 255.0]
+#         features_list, labels_list = [], []
+#         criterion = torch.nn.CrossEntropyLoss()
+#         time_start = time()
+#         for inputs, labels_org in tqdm(dataloaders['test']):
+#             inputs = inputs.cuda() if torch.cuda.is_available() else inputs
+#             inputs = inputs.requires_grad_()
+#             outputs = model.forward_super(inputs)
+#
+#             # Using temperature scaling
+#             outputs = outputs / temper
+#
+#             # Calculating the perturbation we need to add, that is,
+#             # the sign of gradient of cross entropy loss w.r.t. input
+#             labels = torch.argmax(outputs, axis=1)
+#             loss = criterion(outputs, labels)
+#             loss.backward()
+#
+#             # Normalizing the gradient to binary in {0, 1}
+#             gradient = torch.ge(inputs.grad.data, 0)
+#             gradient = (gradient.float() - 0.5) * 2
+#
+#             # Normalizing the gradient to the same space of image
+#             gradient[:, 0] = (gradient[:, 0]) / (norm[0])
+#             gradient[:, 1] = (gradient[:, 1]) / (norm[1])
+#             gradient[:, 2] = (gradient[:, 2]) / (norm[2])
+#             # Adding small perturbations to images
+#
+#             inputs_temp = torch.add(inputs.data, -noise_magnitude, gradient)
+#             features = model(inputs_temp)
+#
+#             features_list.append(features.cpu())
+#             labels_list.append(labels_org.cpu())
+#
+#         features_datasets_dict['test'] = FeaturesDataset(features_list,
+#                                                          labels_list,
+#                                                          transform=transforms.Compose([
+#                                                              transforms.Lambda(lambda x: x)]))
+#
+#         logger.debug('feature extraction with is_preprocess. {:.2f} sec'.format(time() - time_start))
+#
+#     torch.cuda.empty_cache()
+#     model.convert_to_classifier()

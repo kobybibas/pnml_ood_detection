@@ -1,0 +1,40 @@
+session_name: odin_resnet
+windows:
+- window_name: odin_resnet
+  layout: tiled
+  focus: true
+  shell_command_before:
+    - cd ~/pnml_ood/src
+    - source ~/.bashrc
+  panes:
+    - shell_command: # resnet_cifar10 odin
+      - python main.py -t resnet_cifar10 -testset cifar10 -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset Imagenet -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset Imagenet_resize -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset LSUN -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset LSUN_resize -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset iSUN -is_odin true  -is_pnml false -prefix odin_
+    - shell_command: # resnet_cifar100 odin
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset cifar100 -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset Imagenet -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset Imagenet_resize -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset LSUN -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset LSUN_resize -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset iSUN -is_odin true  -is_pnml false -prefix odin_
+      - sleep 5s
+
+
+
+
+

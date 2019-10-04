@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.ndimage.filters import gaussian_filter
 from sklearn.metrics import roc_auc_score, average_precision_score
+import sklearn.metrics as metrics
 
 
 def bhattacharyya(a, b):
@@ -70,7 +71,6 @@ def calc_performance_in_out_dist(true_ind, score_ind):
     sample_weight = [1] * true_len + [true_len / false_len] * false_len
 
     # AUROC
-    # res_auc = roc_auc_score(true_ood, score_ood, sample_weight=sample_weight)
     res_auc = roc_auc_score(true_ind, score_ind, sample_weight=sample_weight)
 
     # AUPR-Out
@@ -96,11 +96,23 @@ def calc_performance_in_out_dist(true_ind, score_ind):
     # P_lambda
     kl_in_p_lambda = find_lamb_star(in_hist, out_hist)
 
+    # Find index of TPR = 95%
+    fpr, tpr, thresholds = metrics.roc_curve(true_ind, score_ind)
+    idx_tpr_95 = np.argmin(np.abs(tpr - 0.95))
+    fpr_in_tpr_95 = fpr[idx_tpr_95]
+
+    # Detection Error: when TPR is 95%.
+    detection_error = 0.5 * (1 - 0.95) + 0.5 * fpr_in_tpr_95
+
     ood_df = pd.DataFrame({
-        'AUROC': [res_auc * 100], 'AP-In': [ap_in * 100], 'AP-Out': [ap_out * 100],
-        'KL Divergence': [kl_dist],
+        'FPR (95% TPR) ↓': [fpr_in_tpr_95 * 100],
+        'Detection Error ↓': [detection_error * 100],
+        'AUROC ↑': [res_auc * 100],
+        'AP-In ↑': [ap_in * 100],
+        'AP-Out ↑': [ap_out * 100],
+        # 'KL Divergence': [kl_dist],
         # 'Bhattach Distance': [bhatt_dist],
-        'KL in P_lamb': [kl_in_p_lambda]
+        # 'KL in P_lamb': [kl_in_p_lambda]
     })
 
     return ood_df

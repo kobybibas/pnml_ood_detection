@@ -1,61 +1,62 @@
 {
-    "debug_flags": {
-        "eval_test_during_train": false
-    },
     "densenet_cifar10": {
         "testset": "cifar10",
         "batch_size": 128,
         "num_workers": 4,
-        "is_split_model": true,
-        "feature_extractor_layer": 3,
-        "initial_training": {
-            "do_initial_training": false,
-            "pretrained_model_path": "../models/densenet10.pth"
+        "eval_pretrained": false,
+        "pretrained_model_path": "../models/densenet10.pth",
+        "pnml": {
+            "is_pnml": false
         },
-        "fit_to_sample": {
-            "epochs": 10,
-            "lr": 0.001,
-            "momentum": 0.9,
-            "step_size": [8],
-            "gamma": 1.0,
-            "weight_decay": 0.0000,
-            "test_start_idx": 0,
-            "test_end_idx": 300,
-            "temperature": 1.0,
-            "batches_num": -1
-        },
-        "preprocess": {
-            "is_preprocess": false,
-            "temperature_preprocess": 1000.0,
+        "odin": {
+            "is_odin": true,
+            "temperature": 1000.0,
             "magnitude": 0.0014
         }
     },
     "densenet_cifar100": {
-        "testset": "Imagenet_resize",
+        "testset": "Imagenet",
         "batch_size": 128,
         "num_workers": 4,
-        "is_split_model": true,
-        "feature_extractor_layer": 3,
-        "initial_training": {
-            "do_initial_training": false,
-            "pretrained_model_path": "../models/densenet100.pth"
+        "eval_pretrained": false,
+        "pretrained_model_path": "../models/densenet100.pth",
+        "pnml": {
+            "is_pnml": true
         },
-        "fit_to_sample": {
-            "epochs": 10,
-            "lr": 0.001,
-            "momentum": 0.9,
-            "step_size": [8],
-            "gamma": 1.0,
-            "weight_decay": 0.0000,
-            "test_start_idx": 0,
-            "test_end_idx": 300,
-            "temperature": 1.0,
-            "batches_num": -1
+        "odin": {
+            "is_odin": false,
+            "temperature": 1000.0,
+            "magnitude": 0.0028
+        }
+    },
+    "resnet_cifar10": {
+        "testset": "cifar10",
+        "batch_size": 128,
+        "num_workers": 4,
+        "eval_pretrained": false,
+        "pretrained_model_path": "wrn28_10_cifar10",
+        "pnml": {
+            "is_pnml": true
         },
-        "preprocess": {
-            "is_preprocess": true,
-            "temperature_preprocess": 1000.0,
-            "magnitude": 0.0014
+        "odin": {
+            "is_odin": false,
+            "temperature": 1000.0,
+            "magnitude": 0.0008
+        }
+    },
+    "resnet_cifar100": {
+        "testset": "cifar100",
+        "batch_size": 128,
+        "num_workers": 4,
+        "eval_pretrained": false,
+        "pretrained_model_path": "wrn28_10_cifar100",
+        "pnml": {
+            "is_pnml": true
+        },
+        "odin": {
+            "is_odin": false,
+            "temperature": 1000.0,
+            "magnitude": 0.0028
         }
     }
 }
