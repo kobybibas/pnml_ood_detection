@@ -9,7 +9,7 @@ from torch.utils import data
 from torchvision import transforms
 from tqdm import tqdm
 
-from dataset_utilities import FeaturesDataset
+from dataset_classes import FeaturesDataset
 from experimnet_utilities import Experiment
 from result_tracker_utilities import ResultTracker
 

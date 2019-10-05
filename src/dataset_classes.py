@@ -1,17 +1,151 @@
+from glob import glob
+from os import path as osp
+
 import numpy as np
-from torchvision.datasets import CIFAR10
+import torch
+from PIL import Image
+from loguru import logger
+from torchvision import datasets
+from torchvision.datasets.folder import default_loader
 
 
-class NoiseDataset(CIFAR10):
+class ImageFolderOOD(datasets.VisionDataset):
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(root, *args, **kwargs)
+        img_path_list = glob(osp.join(root, '*', '*.jpeg')) + \
+                        glob(osp.join(root, '*', '*.png')) + \
+                        glob(osp.join(root, '*', '*.jpg'))
+        if len(img_path_list) == 0:
+            logger.error('Dataset was not downloaded.')
+            ValueError('Failed on ImageFolderOOD')
+
+        img_list = []
+        for img_path in img_path_list:
+            img = default_loader(img_path)
+            img_list.append(np.array(img))
+
+        self.data = np.asarray(img_list)
+        self.targets = [-1] * len(img_path_list)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+
+class UniformNoiseDataset(datasets.VisionDataset):
     """
     Create dataset with random noise images in the same structure of CIFAR10
     """
 
-    def __init__(self, root, transform=None, target_transform=None):
-        super(NoiseDataset, self).__init__(root, train=False,
-                                           transform=transform, target_transform=target_transform,
-                                           download=False)
-
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(root, *args, **kwargs)
         # Create random data and labels
-        self.test_labels = [-1] * 1000
-        self.test_data = np.random.randint(0, high=256, size=(1000, 32, 32, 3), dtype='uint8')
+
+        self.data = torch.rand(10000, 3, 32, 32)
+        self.targets = [-1] * 10000
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+
+class GaussianNoiseDataset(datasets.VisionDataset):
+    """
+    Create dataset with random noise images in the same structure of CIFAR10
+    """
+
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(root, *args, **kwargs)
+        # Create random data and labels
+        self.targets = [-1] * 10000
+
+        self.data = torch.randn(10000, 3, 32, 32) + 0.5
+        self.data = torch.clamp(self.data, 0, 1)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)
+
+
+class FeaturesDataset(datasets.VisionDataset):
+
+    def __init__(self, features_list: list, labels_list: list, *args, **kwargs):
+        super().__init__('', *args, **kwargs)
+
+        self.data = torch.cat(features_list).cpu()
+        self.targets = torch.cat(labels_list).cpu().numpy().tolist()
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.data)

@@ -9,7 +9,7 @@ from experimnet_utilities import experiment_name_valid
 from odin_utilities import execute_odin_baseline, perturbate_dataset
 from pnml_utilities import extract_features
 from result_tracker_utilities import ResultTracker
-from train_utilities import load_pretrained_model
+from train_utilities import test_pretrained_model
 
 """
 Example of running:
@@ -61,8 +61,8 @@ def run_experiment(args: dict):
     ################
     # Load pretrained model
     model = experiment_h.get_model()
-    model = load_pretrained_model(model, params['pretrained_model_path'], dataloaders,
-                                  is_test=params['eval_pretrained'])
+    model = test_pretrained_model(model, dataloaders, is_test=params['eval_pretrained'])
+    logger.info(model)
 
     if params['odin']['is_odin'] is True:
         logger.info('Execute dataset perturbation')
@@ -75,8 +75,6 @@ def run_experiment(args: dict):
     if params['odin']['is_odin'] is True:
         logger.info('Execute ODIN')
         execute_odin_baseline(model, dataloaders['test'], params['odin']['temperature'], experiment_h, tracker)
-
-    # todo: leave one out flag
 
     logger.info('Finished!')
 

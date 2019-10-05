@@ -187,22 +187,9 @@ def eval_single_sample(model, test_sample_data, temperature: float = 1.0):
     return prob, pred
 
 
-def load_pretrained_model(model: nn.Module, pretrained_path: str, dataloaders: dict, is_test=True):
+def test_pretrained_model(model: nn.Module, dataloaders: dict, is_test=True):
     logger.info('Load pretrained model')
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    if pretrained_path.endswith('densenet10.pth') or pretrained_path.endswith('densenet100.pth'):
-        model_loaded = torch.load(pretrained_path, map_location=device)
-        model_loaded = model_loaded['state_dict'] if isinstance(model_loaded, dict) else model_loaded.state_dict()
-        state_dict = load_my_state_dict(model.state_dict(), model_loaded)
-        model.load_state_dict(state_dict)
-    elif pretrained_path == 'wrn28_10_cifar10':
-        pass
-        # model_loaded = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
-        # model.load_state_dict(model_loaded.state_dict())
-    elif pretrained_path == 'wrn28_10_cifar100':
-        pass
-        # model_loaded = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
-        # model.load_state_dict(model_loaded.state_dict())
     model.to(device)
     if is_test is True:
         logger.info('Eval test_in_dist dataloader')

@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+# TODO: REMOVE
 def pre_conv1x1_block(in_channels,
                       out_channels,
                       stride=1,

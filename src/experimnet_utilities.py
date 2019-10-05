@@ -6,8 +6,7 @@ from pytorchcv.model_provider import get_model as ptcv_get_model
 
 from dataset_utilities import create_cifar10_dataloaders, create_cifar100_dataloaders
 from dataset_utilities import create_image_folder_trainloader
-from dataset_utilities import dataloaders_noise
-from feature_extractor_utilities import DensNetFeatureExtractor
+from dataset_utilities import create_uniform_noise_dataloaders, create_gaussian_noise_dataloaders
 
 experiment_name_valid = [
     'densenet_cifar10',
@@ -26,7 +25,11 @@ testsets_name = [
     # LSUN (resize)
     'LSUN_resize'
     # iSUN
-    'iSUN'
+    'iSUN',
+    # Gaussian noise
+    'Gaussian',
+    # Uniform noise
+    'Uniform'
 ]
 
 
@@ -99,11 +102,12 @@ class Experiment:
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'LSUN_resize'),
                                                          self.params['batch_size'],
                                                          self.params['num_workers'])
-        elif self.params['testset'] in ['noise']:
-            self.testset_name = 'noise'
-            testloader = dataloaders_noise(data_folder,
-                                           self.params['batch_size'],
-                                           self.params['num_workers'])
+        elif self.params['testset'] in ['Uniform']:
+            self.testset_name = 'Uniform'
+            testloader = create_uniform_noise_dataloaders(self.params['batch_size'], self.params['num_workers'])
+        elif self.params['testset'] in ['Gaussian']:
+            self.testset_name = 'Gaussian'
+            testloader = create_gaussian_noise_dataloaders(self.params['batch_size'], self.params['num_workers'])
         else:
             ValueError('{} testset is not available'.format(self.params['testset']))
         assert trainloader is not None
@@ -113,41 +117,30 @@ class Experiment:
         return dataloaders
 
     def get_model(self):
-
-        # Densnet
-        if self.exp_type.startswith('densenet'):
-            if self.exp_type == 'densenet_cifar10':
-                model = ptcv_get_model("densenet100_k12_cifar10", pretrained=True)
-            elif self.exp_type == 'densenet_cifar100':
-                model = ptcv_get_model("densenet100_k12_cifar100", pretrained=True)
-            # todo: use ptcv
-
-            num_classes = 100 if self.exp_type.endswith('_cifar100') else 10
-            model = DensNetFeatureExtractor(depth=100, growth_rate=12, num_classes=num_classes)
-
-        # Resnet
-        elif self.exp_type.startswith('resnet'):
-            if self.exp_type == 'resnet_cifar10':
-                model = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
-            elif self.exp_type == 'resnet_cifar100':
-                model = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
-
-            # Add feature extractor method
-            def my_forward(self, x):
-                x = self.features(x)
-                x = x.view(x.size(0), -1)
-                self.features_out = x.clone()
-                x = self.output(x)
-                return x
-
-            def get_features(self):
-                return self.features_out
-
-            model.forward = types.MethodType(my_forward, model)
-            model.get_features = types.MethodType(get_features, model)
-            # model = WideResNetFeatureExtractor(num_classes=num_classes)
+        if self.exp_type == 'densenet_cifar10':
+            model = ptcv_get_model("densenet100_k12_bc_cifar10", pretrained=True)
+        elif self.exp_type == 'densenet_cifar100':
+            model = ptcv_get_model("densenet100_k12_bc_cifar100", pretrained=True)
+        elif self.exp_type == 'resnet_cifar10':
+            model = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
+        elif self.exp_type == 'resnet_cifar100':
+            model = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
         else:
             raise NameError('No model for experiment type: %s' % self.exp_type)
+
+        # Add feature extractor method
+        def my_forward(self, x):
+            x = self.features(x)
+            x = x.view(x.size(0), -1)
+            self.features_out = x.clone()
+            x = self.output(x)
+            return x
+
+        def get_features(self):
+            return self.features_out
+
+        model.forward = types.MethodType(my_forward, model)
+        model.get_features = types.MethodType(get_features, model)
         return model
 
     def get_exp_name(self):

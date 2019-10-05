@@ -18,6 +18,10 @@ windows:
       - python main.py -t resnet_cifar10 -testset LSUN_resize -is_odin false  -is_pnml true -prefix pnml_
       - sleep 5s
       - python main.py -t resnet_cifar10 -testset iSUN -is_odin false  -is_pnml true -prefix pnml_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset Gaussian -is_odin false  -is_pnml true -prefix pnml_
+      - sleep 5s
+      - python main.py -t resnet_cifar10 -testset Uniform -is_odin false  -is_pnml true -prefix pnml_
 
     - shell_command: # resnet_cifar100 pnml
       - sleep 5s
@@ -32,6 +36,10 @@ windows:
       - python main.py -t resnet_cifar100 -testset LSUN_resize -is_odin false  -is_pnml true -prefix pnml_
       - sleep 5s
       - python main.py -t resnet_cifar100 -testset iSUN -is_odin false  -is_pnml true -prefix pnml_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset Gaussian -is_odin false  -is_pnml true -prefix pnml_
+      - sleep 5s
+      - python main.py -t resnet_cifar100 -testset Uniform -is_odin false  -is_pnml true -prefix pnml_
 
 
 
