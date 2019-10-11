@@ -1,5 +1,3 @@
-from multiprocessing import Process, Manager
-
 import numpy as np
 from tqdm import tqdm
 
@@ -35,52 +33,16 @@ def project_on_trainset(x_m_test: np.ndarray, u: np.ndarray, eta: np.ndarray, vh
     x_t_u_2 = (x_m_test.T.dot(u)) ** 2
     div = x_t_u_2 / (eta.T + lamb)
 
-    # regret_np = np.log(1 + (1 / n) * div.sum(axis=1)) / np.log(log_base)
-    regret_np = div.sum(axis=1)  # levarege
+    regret_np = np.log(1 + (1 / n) * div.sum(axis=1)) / np.log(log_base)
     return regret_np
 
 
-def compute_regret(trainset, train_labels, testset_ind, testset_ood, lamb: float = 1e-9, trainset_decomp=None):
-    if trainset_decomp is None:
-        trainset_decomp = []
-        for label in np.unique(train_labels):
-            trainset_single_class = trainset[:, train_labels == label]
-            u, eta, vh = decompose_trainset(trainset_single_class)
-            trainset_decomp.append((u, eta, vh))
-
-    regret_ind_list = []
-    regret_ood_list = []
-    log_base = len(np.unique(train_labels))
-    log_base = 2
-    for (u, eta, vh) in trainset_decomp:
-        regret_ind = project_on_trainset(testset_ind,
-                                         u=u, eta=eta, vh=vh,
-                                         lamb=lamb, log_base=log_base)
-        regret_ood = project_on_trainset(testset_ood, u=u, eta=eta, vh=vh,
-                                         lamb=lamb, log_base=log_base)
-
-        regret_ind_list.append(regret_ind)
-        regret_ood_list.append(regret_ood)
-
-    regret_ind_np = np.vstack(regret_ind_list).T
-    regret_ood_np = np.vstack(regret_ood_list).T
-
-    return regret_ind_np, regret_ood_np, trainset_decomp
-
-
-def fill_dict(trainset_decomp: dict, trainset, train_labels, label1, label2):
-    key_name = '%d %d' % (label1, label2)
-    trainset_single_class = trainset[:, np.logical_or(train_labels == label1, train_labels == label2)]
-    u, eta, vh = decompose_trainset(trainset_single_class)
-    trainset_decomp[key_name] = (u, eta, vh)
-
-
-def compute_regret_from_2_classes(trainset, train_labels, testset_ind, testset_ood,
-                                  output_ind_pairs: list,
-                                  output_ood_pairs: list,
-                                  trainset_decomp=None,
-                                  lamb: float = 1e-9
-                                  ):
+def compute_regret_ind_and_ood(trainset, train_labels, testset_ind, testset_ood,
+                               output_ind_pairs: list,
+                               output_ood_pairs: list,
+                               trainset_decomp=None,
+                               lamb: float = 1e-9
+                               ):
     if trainset_decomp is None:
         trainset_decomp = {}
 

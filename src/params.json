@@ -4,28 +4,28 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "augment_num": 4
+        "augment_num": 0
     },
     "densenet_cifar100": {
         "testset": "Imagenet",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "augment_num": 4
+        "augment_num": 0
     },
     "resnet_cifar10": {
         "testset": "cifar10",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "augment_num": 4
+        "augment_num": 0
     },
     "resnet_cifar100": {
         "testset": "Uniform",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "augment_num": 4
+        "augment_num": 0
     }
 }
 

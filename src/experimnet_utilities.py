@@ -81,37 +81,49 @@ class Experiment:
             self.testset_name = 'iSUN'
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'iSUN'),
                                                          self.params['batch_size'],
-                                                         self.params['num_workers'])
+                                                         self.params['num_workers'],
+                                                         self.trainset_name)
         elif self.params['testset'] in ['Imagenet']:
             self.testset_name = 'Imagenet'
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'Imagenet'),
                                                          self.params['batch_size'],
-                                                         self.params['num_workers'])
+                                                         self.params['num_workers'],
+                                                         self.trainset_name
+                                                         )
         elif self.params['testset'] in ['Imagenet_resize']:
             self.testset_name = 'Imagenet_resize'
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'Imagenet_resize'),
                                                          self.params['batch_size'],
-                                                         self.params['num_workers'])
+                                                         self.params['num_workers'],
+                                                         self.trainset_name)
         elif self.params['testset'] in ['LSUN']:
             self.testset_name = 'LSUN'
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'LSUN'),
                                                          self.params['batch_size'],
-                                                         self.params['num_workers'])
+                                                         self.params['num_workers'],
+                                                         self.trainset_name)
         elif self.params['testset'] in ['LSUN_resize']:
             self.testset_name = 'LSUN_resize'
             testloader = create_image_folder_trainloader(os.path.join('..', 'data', 'LSUN_resize'),
                                                          self.params['batch_size'],
-                                                         self.params['num_workers'])
+                                                         self.params['num_workers'],
+                                                         self.trainset_name)
         elif self.params['testset'] in ['Uniform']:
             self.testset_name = 'Uniform'
-            testloader = create_uniform_noise_dataloaders(self.params['batch_size'], self.params['num_workers'])
+            testloader = create_uniform_noise_dataloaders(self.params['batch_size'],
+                                                          self.params['num_workers'],
+                                                          self.trainset_name)
         elif self.params['testset'] in ['Gaussian']:
             self.testset_name = 'Gaussian'
-            testloader = create_gaussian_noise_dataloaders(self.params['batch_size'], self.params['num_workers'])
+            testloader = create_gaussian_noise_dataloaders(self.params['batch_size'],
+                                                           self.params['num_workers'],
+                                                           self.trainset_name)
         else:
             ValueError('{} testset is not available'.format(self.params['testset']))
         assert trainloader is not None
         assert testloader is not None
+
+        # Assign transforms
 
         dataloaders = {'train': trainloader, 'test': testloader, 'test_in_dist': testloader_in_distribution}
         return dataloaders
