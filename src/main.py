@@ -4,10 +4,10 @@ import os
 
 from loguru import logger
 
+from dataset_utilities import transform_cifar_train
 from experimnet_utilities import Experiment
 from experimnet_utilities import experiment_name_valid
-from odin_utilities import execute_odin_baseline, perturbate_dataset
-from pnml_utilities import extract_features
+from pnml_utilities import extract_features, save_features
 from result_tracker_utilities import ResultTracker
 from train_utilities import test_pretrained_model
 
@@ -45,10 +45,10 @@ def run_experiment(args: dict):
     # Create logger and save params to output folder
     tracker = ResultTracker(experiment_name=os.path.join(args['prefix'] + experiment_h.get_exp_name()),
                             output_root=os.path.join('..', 'output'))
-    logger.add(os.path.join(tracker.output_folder, 'log_{}_{}.log'.format(args['experiment_type'],
-                                                                          tracker.unique_time)))
-    logger.info('OutputDirectory: {}'.format(tracker.output_folder))
-    with open(os.path.join(tracker.output_folder, 'params.json'), 'w', encoding='utf8') as outfile:
+    logger.add(os.path.join(tracker.output_dir, 'log_{}_{}.log'.format(args['experiment_type'],
+                                                                       tracker.unique_time)))
+    logger.info('OutputDirectory: {}'.format(tracker.output_dir))
+    with open(os.path.join(tracker.output_dir, 'params.json'), 'w', encoding='utf8') as outfile:
         outfile.write(json.dumps(params, indent=4, sort_keys=True))
     logger.info(json.dumps(params, indent=4, sort_keys=True))
 
@@ -64,17 +64,16 @@ def run_experiment(args: dict):
     model = test_pretrained_model(model, dataloaders, is_test=params['eval_pretrained'])
     logger.info(model)
 
-    if params['odin']['is_odin'] is True:
-        logger.info('Execute dataset perturbation')
-        dataloaders['test'] = perturbate_dataset(model, dataloaders['test'],
-                                                 params['odin']['magnitude'], params['odin']['temperature'])
-    if params['pnml']['is_pnml'] is True:
-        logger.info('Execute pNML')
-        extract_features(model, dataloaders, experiment_h, tracker)
+    logger.info('Execute pNML')
+    features_datasets_dict = extract_features(model, dataloaders, experiment_h)
+    save_features(features_datasets_dict, experiment_h, tracker.output_dir_embedding, suffix='')
 
-    if params['odin']['is_odin'] is True:
-        logger.info('Execute ODIN')
-        execute_odin_baseline(model, dataloaders['test'], params['odin']['temperature'], experiment_h, tracker)
+    # Augment dataset
+    dataloaders['train'].dataset.transform = transform_cifar_train
+    dataloaders['test'].dataset.transform = transform_cifar_train
+    for i in range(params['augment_num']):
+        features_datasets_dict = extract_features(model, dataloaders, experiment_h)
+        save_features(features_datasets_dict, experiment_h, tracker.output_dir_embedding, suffix='_' + str(i))
 
     logger.info('Finished!')
 
@@ -95,15 +94,6 @@ if __name__ == "__main__":
     parser.add_argument('-num_workers',
                         help='CPU workers for dataloader',
                         type=int)
-    parser.add_argument('-temperature',
-                        help='Scale of logits',
-                        type=float)
-    parser.add_argument('-is_odin',
-                        help='whether to execute ODIN baseline',
-                        type=lambda s: s.lower() in ['true', 't', 'yes', '1'])
-    parser.add_argument('-is_pnml',
-                        help='whether to execute pNML scheme',
-                        type=lambda s: s.lower() in ['true', 't', 'yes', '1'])
 
     args = vars(parser.parse_args())
 

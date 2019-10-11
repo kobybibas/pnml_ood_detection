@@ -4,56 +4,28 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "pnml": {
-            "is_pnml": false
-        },
-        "odin": {
-            "is_odin": false,
-            "temperature": 1000.0,
-            "magnitude": 0.0014
-        }
+        "augment_num": 4
     },
     "densenet_cifar100": {
         "testset": "Imagenet",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "pnml": {
-            "is_pnml": true
-        },
-        "odin": {
-            "is_odin": false,
-            "temperature": 1000.0,
-            "magnitude": 0.0028
-        }
+        "augment_num": 4
     },
     "resnet_cifar10": {
         "testset": "cifar10",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "pnml": {
-            "is_pnml": true
-        },
-        "odin": {
-            "is_odin": false,
-            "temperature": 1000.0,
-            "magnitude": 0.0008
-        }
+        "augment_num": 4
     },
     "resnet_cifar100": {
-        "testset": "Gaussian",
+        "testset": "Uniform",
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
-        "pnml": {
-            "is_pnml": true
-        },
-        "odin": {
-            "is_odin": false,
-            "temperature": 1000.0,
-            "magnitude": 0.0028
-        }
+        "augment_num": 4
     }
 }
 

@@ -4,10 +4,30 @@ from torchvision import transforms, datasets
 
 from dataset_classes import UniformNoiseDataset, GaussianNoiseDataset, ImageFolderOOD
 
-transform = transforms.Compose([
+mean_rgb = (0.4914, 0.4822, 0.4465)
+std_rgb = (0.2023, 0.1994, 0.2010)
+jitter_param = 0.4
+
+transform_cifar_train = transforms.Compose([
+    transforms.RandomCrop(size=32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    # transforms.ColorJitter(
+    #     brightness=jitter_param,
+    #     contrast=jitter_param,
+    #     saturation=jitter_param),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=mean_rgb,
+        std=std_rgb),
+])
+
+transform_cifar_test = transforms.Compose([
     transforms.Resize(32),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.Normalize(mean_rgb, std_rgb),
+])
+transform_noise = transforms.Compose([
+    transforms.Normalize(mean_rgb, std_rgb),
 ])
 
 
@@ -22,7 +42,7 @@ def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, 
     trainset = datasets.CIFAR10(root=data_dir,
                                 train=True,
                                 download=True,
-                                transform=transform)
+                                transform=transform_cifar_test)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
@@ -31,7 +51,7 @@ def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, 
     testset = datasets.CIFAR10(root=data_dir,
                                train=False,
                                download=True,
-                               transform=transform)
+                               transform=transform_cifar_test)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
@@ -52,7 +72,7 @@ def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128,
     trainset = datasets.CIFAR100(root=data_dir,
                                  train=True,
                                  download=True,
-                                 transform=transform)
+                                 transform=transform_cifar_test)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
@@ -61,7 +81,7 @@ def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128,
     testset = datasets.CIFAR100(root=data_dir,
                                 train=False,
                                 download=True,
-                                transform=transform)
+                                transform=transform_cifar_test)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
@@ -87,7 +107,7 @@ def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128,
 
 def create_image_folder_trainloader(path: str, batch_size: int = 128, num_workers: int = 4):
     testset = ImageFolderOOD(root=path,
-                             transform=transform)
+                             transform=transform_cifar_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                              shuffle=False, num_workers=num_workers)
     return testloader
@@ -102,7 +122,7 @@ def create_uniform_noise_dataloaders(batch_size: int = 128, num_workers: int = 4
     :return: train and test loaders along with mapping between labels and class names
     """
     testset = UniformNoiseDataset(root='',
-                                  transform=None)
+                                  transform=transform_cifar_test)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
@@ -119,7 +139,7 @@ def create_gaussian_noise_dataloaders(batch_size: int = 128, num_workers: int = 
     :return: train and test loaders along with mapping between labels and class names
     """
     testset = GaussianNoiseDataset(root='',
-                                   transform=None)
+                                   transform=transform_cifar_test)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,

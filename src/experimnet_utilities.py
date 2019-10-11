@@ -141,6 +141,7 @@ class Experiment:
 
         model.forward = types.MethodType(my_forward, model)
         model.get_features = types.MethodType(get_features, model)
+        model.eval()
         return model
 
     def get_exp_name(self):

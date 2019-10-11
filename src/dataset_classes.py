@@ -62,7 +62,7 @@ class UniformNoiseDataset(datasets.VisionDataset):
         super().__init__(root, *args, **kwargs)
         # Create random data and labels
 
-        self.data = torch.rand(10000, 3, 32, 32)
+        self.data = np.random.randint(0, 255, (10000, 32, 32, 3)).astype('uint8')
         self.targets = [-1] * 10000
 
     def __getitem__(self, index):
@@ -74,6 +74,10 @@ class UniformNoiseDataset(datasets.VisionDataset):
             tuple: (image, target) where target is index of the target class.
         """
         img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -97,8 +101,8 @@ class GaussianNoiseDataset(datasets.VisionDataset):
         # Create random data and labels
         self.targets = [-1] * 10000
 
-        self.data = torch.randn(10000, 3, 32, 32) + 0.5
-        self.data = torch.clamp(self.data, 0, 1)
+        self.data = 255 * np.random.randn(10000, 32, 32, 3) + 255 / 2
+        self.data = np.clip(self.data, 0, 255).astype('uint8')
 
     def __getitem__(self, index):
         """
@@ -109,6 +113,10 @@ class GaussianNoiseDataset(datasets.VisionDataset):
             tuple: (image, target) where target is index of the target class.
         """
         img, target = self.data[index], self.targets[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -124,10 +132,11 @@ class GaussianNoiseDataset(datasets.VisionDataset):
 
 class FeaturesDataset(datasets.VisionDataset):
 
-    def __init__(self, features_list: list, labels_list: list, *args, **kwargs):
+    def __init__(self, features_list: list, labels_list: list, outputs_list: list, *args, **kwargs):
         super().__init__('', *args, **kwargs)
 
-        self.data = torch.cat(features_list).cpu()
+        self.data = torch.cat(features_list).cpu().numpy()
+        self.outputs = torch.cat(outputs_list).cpu().numpy()
         self.targets = torch.cat(labels_list).cpu().numpy().tolist()
 
     def __getitem__(self, index):

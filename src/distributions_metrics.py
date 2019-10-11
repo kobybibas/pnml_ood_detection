@@ -81,20 +81,20 @@ def calc_performance_in_out_dist(true_ind, score_ind):
     ap_in = average_precision_score(
         true_ind, score_ind, sample_weight=sample_weight)
 
-    # KL distance
-    score_ind = np.array(score_ind)
-    true_ind = np.array(true_ind)
-    in_hist = histogram_and_smooth(
-        score_ind[true_ind == True], nbins=20, sigma=0)
-    out_hist = histogram_and_smooth(
-        score_ind[true_ind == False], nbins=20, sigma=0)
-    kl_dist = kl_distance(in_hist, out_hist)
-
-    # Bhattacharyya distance
-    bhatt_dist = bhattacharyya(in_hist, out_hist)
-
-    # P_lambda
-    kl_in_p_lambda = find_lamb_star(in_hist, out_hist)
+    # # KL distance
+    # score_ind = np.array(score_ind)
+    # true_ind = np.array(true_ind)
+    # in_hist = histogram_and_smooth(
+    #     score_ind[true_ind == True], nbins=20, sigma=0)
+    # out_hist = histogram_and_smooth(
+    #     score_ind[true_ind == False], nbins=20, sigma=0)
+    # kl_dist = kl_distance(in_hist, out_hist)
+    #
+    # # Bhattacharyya distance
+    # bhatt_dist = bhattacharyya(in_hist, out_hist)
+    #
+    # # P_lambda
+    # kl_in_p_lambda = find_lamb_star(in_hist, out_hist)
 
     # Find index of TPR = 95%
     fpr, tpr, thresholds = metrics.roc_curve(true_ind, score_ind)

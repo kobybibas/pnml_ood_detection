@@ -87,7 +87,7 @@ def execute_odin_baseline(model: torch.nn.Module, dataloader: data.DataLoader, t
         torch.cuda.empty_cache()
         logger.info('Finish calculate max prob in {:.2f} sec'.format(time.time() - time_start))
     max_prob_np = torch.cat(max_prob_list).cpu().numpy()
-    file_name = osp.join(tracker.output_folder,
+    file_name = osp.join(tracker.output_dir,
                          '{}_{}_test_odin.npy'.format(experiment_h.exp_type, experiment_h.testset_name))
     logger.info('Saving to {}'.format(file_name))
     np.save(file_name, max_prob_np)

@@ -16,10 +16,12 @@ class ResultTracker:
         self.results_dict = {}
 
         self.unique_time = time.strftime("%Y%m%d_%H%M%S")
-        self.output_folder = os.path.join(output_root, '%s_%s' %
-                                          (experiment_name, self.unique_time))
-        pathlib.Path(self.output_folder).mkdir(parents=True, exist_ok=True)
-        self.define_json_output(os.path.join(self.output_folder, 'results_%s_%s.json' %
+        self.output_dir = os.path.join(output_root, '%s_%s' %
+                                       (experiment_name, self.unique_time))
+        self.output_dir_embedding = os.path.join(output_root, 'embedding')
+        pathlib.Path(self.output_dir_embedding).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+        self.define_json_output(os.path.join(self.output_dir, 'results_%s_%s.json' %
                                              (experiment_name, self.unique_time)))
 
     def define_json_output(self, json_file_name: str):

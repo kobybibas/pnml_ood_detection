@@ -1,280 +1,304 @@
-import copy
 import os.path as osp
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm_notebook as tqdm
 
 from distributions_metrics import calc_performance_in_out_dist
-from tqdm import tqdm
+from ood_score_utilities import compute_regret, calc_loss, sigmoid, compute_regret_from_2_classes
+
+model_name_map = {
+    'DensNet-BC CIFAR10': 'densenet_cifar10',
+    'DensNet-BC CIFAR100': 'densenet_cifar100',
+    'WRN-28-10 CIFAR10': 'resnet_cifar10',
+    'WRN-28-10 CIFAR100': 'resnet_cifar100'
+
+}
+
+testset_name_map = {
+    'Imagenet (crop)': 'Imagenet',
+    'Imagenet (resize)': 'Imagenet_resize',
+    'LSUN (crop)': 'LSUN',
+    'LSUN (resize)': 'LSUN_resize',
+    'iSUN': 'iSUN',
+    'Uniform': 'Uniform',
+    'Gaussian': 'Gaussian',
+}
 
 
-def compute_regret(x_m_train: np.ndarray, x_m_test: np.ndarray, lamb: float, u=None, eta=None, vh=None, dim: int = -1):
-    n = x_m_train.shape[1]
+class BenchmarkPNML:
+    def __init__(self, base_dir_path=osp.join('..', 'output', 'embedding'),
+                 is_5_aug: bool = False,
+                 is_genie_estimate: bool = False):
+        self.base_dir = base_dir_path
+        self.is_5_aug = is_5_aug
+        self.is_genie_estimate = is_genie_estimate
+        self.prob_debug_dict = None
+        self.regret_debug_dict = None
 
-    # SVD decomposition
-    if u is None or eta is None or None or vh is None:
-        u, s, vh = np.linalg.svd(x_m_train)
-        eta = s ** 2
+    def load_results_for_max_prob(self, model_name: str, testset_name: str) -> (
 
-        # pad to fit u
-        padded = np.zeros(u.shape[0])
-        padded[:eta.shape[0]] = eta
-        eta = padded
+            np.ndarray, np.ndarray, np.ndarray):
+        # Testset IND
+        trainset_name = model_name.split(' ')[-1].lower()
+        testset_output_ind_path = osp.join(self.base_dir,
+                                           model_name_map[
+                                               model_name] + '_' + trainset_name + '_' + 'test_outputs_pnml.npy')
+        testset_output_ind = np.load(testset_output_ind_path)
 
-        eta = eta[:, np.newaxis]
+        # Testset OOD
+        testset_output_ood_path = osp.join(self.base_dir, model_name_map[model_name] + '_' + testset_name_map[
+            testset_name] + '_' + 'test_outputs_pnml.npy')
+        testset_output_ood = np.load(testset_output_ood_path)
 
-    # Calc mean regret
-    x_t_u_2 = (x_m_test.T.dot(u)) ** 2
-    div = x_t_u_2 / (eta.T + lamb)
+        # Trainset labels load
+        trainset_labels_path = osp.join(self.base_dir, trainset_name + '_' + 'train_labels.npy')
+        trainset_labels = np.load(trainset_labels_path)
+        return trainset_labels, testset_output_ind, testset_output_ood
 
-    div = div[:, :dim]
+    def calc_max_prob_score(self, model_name, ood_name_list):
+        max_prob_score_dict = {}
+        max_prob_debug_dict = {}
+        for ood_name in ood_name_list:
+            trainset_labels, testset_output_ind, testset_output_ood = self.load_results_for_max_prob(
+                model_name,
+                ood_name)
+            num_labels = len(np.unique(trainset_labels))
+            score_ind = calc_loss(testset_output_ind, num_labels)
+            score_ood = calc_loss(testset_output_ood, num_labels)
 
-    regret_list = np.log(1 + (1 / n) * div.sum(axis=1)).tolist()
-    return regret_list, u, eta, vh
+            max_prob_score_dict[ood_name] = {'IND': score_ind.tolist(),
+                                             'OOD': score_ood.tolist()}
 
+            max_prob_debug_dict[ood_name] = {'IND': sigmoid(testset_output_ind),
+                                             'OOD': sigmoid(testset_output_ood)}
 
-def analyze_ind_ood_regret(trainset_all: np.ndarray, train_labels: np.ndarray, testset_ind: np.ndarray,
-                           testset_ood: np.ndarray, dim: int = -1):
-    regret_ind_list_all = []
-    regret_ood_list_all = []
-    lamb = 1e-16
-    for class_num in np.unique(train_labels):
-        trainset = trainset_all[:, train_labels == class_num]
-        regret_ind_list, u, eta, vh = compute_regret(trainset, testset_ind, lamb=lamb, u=None, eta=None, vh=None,
-                                                     dim=dim)
-        regret_ood_list, _, _, _ = compute_regret(trainset, testset_ood, lamb=lamb, u=u, eta=eta, vh=vh, dim=dim)
+        return max_prob_score_dict, max_prob_debug_dict
 
-        regret_ind_list_all.append(regret_ind_list)
-        regret_ood_list_all.append(regret_ood_list)
+    def load_results_for_regret(self, model_name: str, testset_name: str) -> (np.ndarray,
+                                                                              np.ndarray,
+                                                                              np.ndarray,
+                                                                              np.ndarray):
+        aug_num = 1
 
-    regret_ind_np = np.asarray(regret_ind_list_all)
-    regret_ood_np = np.asarray(regret_ood_list_all)
+        # Trainset load
+        trainset_name = model_name.split(' ')[-1].lower()
+        trainset_path = osp.join(self.base_dir,
+                                 model_name_map[model_name] + '_' + trainset_name + '_' + 'train_pnml.npy')
+        trainset = np.load(trainset_path).T
 
-    regret_ind_list = np.min(regret_ind_np, axis=0).tolist()
-    regret_ood_list = np.min(regret_ood_np, axis=0).tolist()
+        if self.is_5_aug is True:
+            trainset_list = []
+            for i in range(aug_num):
+                trainset_path = osp.join(self.base_dir,
+                                         model_name_map[
+                                             model_name] + '_' + trainset_name + '_' + 'train_pnml_%d.npy' % i)
+                trainset_list.append(np.load(trainset_path).T)
+            trainset = np.vstack([trainset] + trainset_list)
 
-    assert isinstance(regret_ind_list, list)
-    assert isinstance(regret_ood_list, list)
+        # Trainset labels load
+        trainset_labels_path = osp.join(self.base_dir, trainset_name + '_' + 'train_labels.npy')
+        trainset_labels = np.load(trainset_labels_path)
 
-    y_score_ind = regret_ind_list + regret_ood_list
-    y_score_ind = 1 - np.array(y_score_ind)
-    y_true_ind = [True] * len(regret_ind_list) + [False] * len(regret_ood_list)
-    performance = calc_performance_in_out_dist(y_true_ind, y_score_ind)
+        # self.is_5_aug is True:
+        #     trainset_labels_list = []
+        #     for i in range(aug_num):
+        #         trainset_labels_list.append(np.load(trainset_labels_path).T)
+        #     trainset_labels = np.hstack([trainset_labels] + trainset_labels_list)
 
-    return performance, regret_ind_list, regret_ood_list
+        # Testset In-Dist load
+        testset_ind_path = osp.join(self.base_dir,
+                                    model_name_map[model_name] + '_' + trainset_name + '_' + 'test_pnml.npy')
+        testset_ind = np.load(testset_ind_path).T
 
+        if self.is_5_aug is True:
+            testset_ind_list = []
+            for i in range(aug_num):
+                testset_ind_path = osp.join(self.base_dir,
+                                            model_name_map[
+                                                model_name] + '_' + trainset_name + '_' + 'test_pnml_%d.npy' % i)
+                testset_ind_list.append(np.load(testset_ind_path).T)
+            testset_ind = np.vstack([testset_ind] + testset_ind_list)
 
-def optimize_dim_with_range(trainset_all, train_labels, testset_ind, testset_ood,
-                            start: int = 10, stop=None, step: int = 100):
-    score_max = 0
-    dim_max = 0
-    score_list = []
-    if stop is None:
-        stop = trainset_all.shape[0]
-    dim_np = np.arange(start, stop, step, dtype=int)
-    dim_np = np.append(dim_np, stop)
-    print('Iterating over: ', dim_np)
-    for dim in tqdm(dim_np):
-        perf_regret, regret_ind_list, regret_ood_list = analyze_ind_ood_regret(trainset_all, train_labels,
-                                                                               testset_ind,
-                                                                               testset_ood,
-                                                                               dim=dim)
-        score = float(perf_regret['AUROC ↑'])
-        score_list.append(score)
-        if score > score_max:
-            score_max = score
-            dim_max = int(dim)
-            # print('Found max. [dim AUROC]=[{} {:.2f}]'.format(dim, score))
-    return dim_max, dim_np, score_list
+        # Testset OOD
+        testset_ood_path = osp.join(self.base_dir, model_name_map[model_name] + '_' + testset_name_map[
+            testset_name] + '_' + 'test_pnml.npy')
+        testset_ood = np.load(testset_ood_path).T
 
+        if self.is_5_aug is True:
+            testset_ood_list = []
+            for i in range(aug_num):
+                testset_ood_path = osp.join(self.base_dir,
+                                            model_name_map[model_name] + '_' + testset_name_map[
+                                                testset_name] + '_' + 'test_pnml_%d.npy' % i)
+                testset_ood_list.append(np.load(testset_ood_path).T)
+            testset_ood = np.vstack([testset_ood] + testset_ood_list)
 
-def optimize_dim(trainset_path, train_labels_path, testset_ind_path, testset_ood_path):
-    trainset_all = np.load(trainset_path).T
-    testset_ind = np.load(testset_ind_path).T
-    train_labels = np.load(train_labels_path)
-    testset_ood = np.load(testset_ood_path).T
+        return trainset, trainset_labels, testset_ind, testset_ood
 
-    dim_max = trainset_all.shape[0]
-    start = 10
-    stop = None
-    for step in [100, 10, 1]:
-        dim_max, dim_np, score_list = optimize_dim_with_range(trainset_all, train_labels, testset_ind,
-                                                              testset_ood,
-                                                              start=start, stop=stop, step=step)
-        assert isinstance(dim_max, int)
-        assert isinstance(dim_np, np.ndarray)
-        assert isinstance(score_list, list)
+    def calc_regret_score(self, model_name: str, ood_name_list: list) -> (dict, dict):
+        trainset_decomp = None
+        regret_score_dict = {}
+        regret_debug_dict = {}
+        for ood_name in tqdm(ood_name_list):
+            print('regret score for {}'.format(ood_name))
+            trainset, trainset_labels, testset_ind, testset_ood = self.load_results_for_regret(model_name, ood_name)
+            regret_ind_np, regret_ood_np, trainset_decomp = compute_regret(trainset, trainset_labels,
+                                                                           testset_ind, testset_ood,
+                                                                           lamb=1e-9,
+                                                                           trainset_decomp=trainset_decomp)
 
-        # Refine
-        index_min = np.argmin(np.abs(dim_np - dim_max))
-        start = dim_np[index_min - 1] if index_min != 0 else dim_np[index_min]
-        stop = dim_np[index_min + 1] if index_min != len(dim_np) - 1 else dim_np[index_min]
-        print('[AUROC dim]=[{:.2f} {}] [start end stop]=[{} {} {}]'.format(score_list[index_min],
-                                                                           dim_max, start, stop, step))
+            regret_ind_list = np.min(regret_ind_np, axis=1).tolist()
+            regret_ood_list = np.min(regret_ood_np, axis=1).tolist()
 
-    return dim_max
+            regret_score_dict[ood_name] = {'IND': regret_ind_list,
+                                           'OOD': regret_ood_list}
 
+            regret_debug_dict[ood_name] = {'IND': regret_ind_np,
+                                           'OOD': regret_ood_np}
 
-def benchmark_pnml(pnml_dataset_input: dict, dim: int = -1):
-    pnml_dataset = copy.deepcopy(pnml_dataset_input)
+        return regret_score_dict, regret_debug_dict
 
-    # Get In-Distribution datasets
-    trainset_path = pnml_dataset.pop('trainset', None)
-    train_labels_path = pnml_dataset.pop('train_labels', None)
-    testset_path = pnml_dataset.pop('testset', None)
-    trainset_all = np.load(trainset_path).T
-    testset_ind = np.load(testset_path).T
-    train_labels = np.load(train_labels_path)
+    def compute_perf_single(self, model_name: str, method: str, ood_name: str, regret_score_dict: dict,
+                            loss_score_dict: dict):
+        regret_ind_score_list, regret_ood_score_list = regret_score_dict['IND'], regret_score_dict['OOD']
 
-    # Initialize performance dataframe output
-    perf_df_list = []
+        score_ind = regret_ind_score_list
+        score_ood = regret_ood_score_list
+        if self.is_genie_estimate is True:
+            loss_ind_score_list, loss_ood_score_list = loss_score_dict['IND'], loss_score_dict['OOD']
+            score_ind = (np.array(loss_ind_score_list) - np.array(regret_ind_score_list)).tolist()
+            score_ood = (np.array(loss_ood_score_list) - np.array(regret_ood_score_list)).tolist()
 
-    # Iterate over Out-Of-Distribution datasets
-    for ood_name, npy_path in pnml_dataset.items():
-        if osp.exists(npy_path) is False:
-            continue
-        print('pNML for {}'.format(ood_name))
-        testset_ood = np.load(npy_path).T
+        assert isinstance(score_ind, list) and isinstance(score_ood, list)
 
-        # Regret
-        perf_regret, regret_ind_list, regret_ood_list = analyze_ind_ood_regret(trainset_all, train_labels,
-                                                                               testset_ind,
-                                                                               testset_ood,
-                                                                               dim=dim)
-        # perf_regret = perf_regret.rename(index={0: ood_name})
-        perf_regret.insert(0, 'Method', ['pNML'])
+        y_score_ind = score_ind + score_ood
+        y_score_ind = 1 - np.array(y_score_ind)
+        y_true_ind = [True] * len(score_ind) + [False] * len(score_ood)
+        perf_regret = calc_performance_in_out_dist(y_true_ind, y_score_ind)
+
+        perf_regret.insert(0, 'Method', [method])
         perf_regret.insert(0, 'OOD Datasets', [ood_name])
+        perf_regret.insert(0, 'Model', [model_name] * len(perf_regret))
 
-        perf_df_list.append(perf_regret)
+        return perf_regret
 
-    df = pd.concat(perf_df_list)
-    df.index = pd.RangeIndex(len(df.index))
-    return df
+    def execute(self, ood_name_list: list, model_name: str, method: str) -> (pd.DataFrame, dict):
+        print('benchmark_pnml. model_name={}, is_5_aug={}, is_genie_estimate={}'.format(model_name,
+                                                                                        self.is_5_aug,
+                                                                                        self.is_genie_estimate))
+        loss_score_dict, self.prob_debug_dict = self.calc_max_prob_score(model_name, ood_name_list)
+        regret_score_dict, self.regret_debug_dict = self.calc_regret_score(model_name, ood_name_list)
 
+        perf_df_list = []
+        for (ood_regret_name, regret_score_dict), (ood_loss_name, loss_score_dict) in zip(regret_score_dict.items(),
+                                                                                          loss_score_dict.items()):
+            assert ood_regret_name == ood_loss_name
+            perf_regret = self.compute_perf_single(model_name, method, ood_regret_name, regret_score_dict,
+                                                   loss_score_dict)
+            perf_df_list.append(perf_regret)
 
-def benchmark_odin(odin_dataset_input: dict) -> pd.DataFrame:
-    odin_dataset = copy.deepcopy(odin_dataset_input)
+        df = pd.concat(perf_df_list)
+        df.index = pd.RangeIndex(len(df.index))
 
-    # Get In-Distribution datasets
-    testset_path = odin_dataset.pop('testset', None)
-    assert osp.exists(testset_path)
-    ind_max_prob = np.load(testset_path).tolist()
-    perf_df_list = []
-    for ood_name, npy_path in odin_dataset.items():
-        if osp.exists(npy_path) is False:
-            continue
-        print('ODIN for {}'.format(ood_name))
-        out_dist_max_prob = np.load(npy_path).tolist()
-
-        assert isinstance(ind_max_prob, list)
-        assert isinstance(out_dist_max_prob, list)
-
-        y_score_ind = ind_max_prob + out_dist_max_prob
-        y_true_ind = [True] * len(ind_max_prob) + [False] * len(out_dist_max_prob)
-        performance_odin = calc_performance_in_out_dist(y_true_ind, y_score_ind)
-
-        performance_odin = performance_odin.rename(index={0: ood_name})
-        performance_odin.insert(0, 'Method', ['ODIN'])
-        perf_df_list.append(performance_odin)
-
-    return pd.concat(perf_df_list)
+        debug_dict = {'regret': self.regret_debug_dict, 'prob': self.prob_debug_dict}
+        return df, debug_dict
 
 
-# ------ #
-# ODIN
-# ------ #
-datasets_odin = ['Imagenet (crop)', 'Imagenet (resize)', 'LSUN (crop)',
-                 'LSUN (resize)', 'iSUN', 'Uniform', 'Gaussian']
-densnet_cifar10_odin = {
-    'Model': ['DensNet-BC CIFAR10'] * len(datasets_odin),
-    'OOD Datasets': datasets_odin,
-    'Method': ['ODIN'] * len(datasets_odin),
-    'FPR (95% TPR) ↓': [4.3, 7.5, 8.7, 3.8, 6.3, 0.0, 0.0],
-    'Detection Error ↓': [4.7, 6.3, 6.9, 4.4, 5.7, 2.5, 2.5],
-    'AUROC ↑': [99.1, 98.5, 98.2, 99.2, 98.8, 99.9, 100.0],
-    'AP-In ↑': [99.1, 98.6, 98.5, 99.3, 98.9, 100.0, 100.0],
-    'AP-Out ↑': [99.1, 98.5, 97.8, 99.2, 98.8, 99.9, 100.0],
-}
-odin_df_densnet_cifar10 = pd.DataFrame(densnet_cifar10_odin)
+class BenchmarkPNML2Regrets(BenchmarkPNML):
+    def compose_pair(self, outputs):
+        pair_list = []
+        for output_single in outputs:
+            # label1 = output_single.argmax()
+            # label2 = output_single.argmin()
 
-densnet_cifar100_odin = {
-    'Model': ['DensNet-BC CIFAR100'] * len(datasets_odin),
-    'OOD Datasets': datasets_odin,
-    'Method': ['ODIN'] * len(datasets_odin),
-    'FPR (95% TPR) ↓': [17.3, 44.3, 17.6, 44.0, 49.5, 0.5, 0.2],
-    'Detection Error ↓': [11.2, 24.6, 11.3, 24.5, 27.2, 2.8, 2.6],
-    'AUROC ↑': [97.1, 90.7, 96.8, 91.5, 90.1, 99.5, 99.6],
-    'AP-In ↑': [97.4, 91.4, 97.1, 92.4, 91.1, 99.6, 99.7],
-    'AP-Out ↑': [96.8, 90.1, 96.5, 90.6, 88.9, 99.0, 99.1]}
-odin_df_densnet_cifar100 = pd.DataFrame(densnet_cifar100_odin)
+            indexes = np.argsort(-output_single)
+            label1, label2 = indexes[0], indexes[1]
 
-resnet_cifar10_odin = {
-    'Model': ['WRN-28-10 CIFAR10'] * len(datasets_odin),
-    'OOD Datasets': datasets_odin,
-    'Method': ['ODIN'] * len(datasets_odin),
-    'FPR (95% TPR) ↓': [23.4, 25.5, 21.8, 17.6, 21.3, 0.0, 0.0],
-    'Detection Error ↓': [14.2, 15.2, 13.4, 11.3, 13.2, 2.5, 2.5],
-    'AUROC ↑': [94.2, 92.1, 95.9, 95.4, 93.7, 100.0, 100.0],
-    'AP-In ↑': [92.8, 89.0, 95.8, 93.8, 91.2, 100.0, 100.0],
-    'AP-Out ↑': [94.7, 93.6, 95.5, 96.1, 94.9, 100.0, 100.0]}
-odin_df_resnet_cifar10 = pd.DataFrame(resnet_cifar10_odin)
+            pair_single = [label1, label2]
+            pair_single.sort()
+            pair_list.append(tuple(pair_single))
 
-resnet_cifar100_odin = {
-    'Model': ['WRN-28-10 CIFAR100'] * len(datasets_odin),
-    'OOD Datasets': datasets_odin,
-    'Method': ['ODIN'] * len(datasets_odin),
-    'FPR (95% TPR) ↓': [43.9, 55.9, 39.6, 56.5, 57.3, 0.1, 1.0],
-    'Detection Error ↓': [24.4, 30.4, 22.3, 30.8, 31.1, 2.5, 3.0],
-    'AUROC ↑': [90.8, 84.0, 92.0, 86.0, 85.6, 99.1, 98.5],
-    'AP-In ↑': [91.4, 82.8, 92.4, 86.2, 85.9, 99.4, 99.1],
-    'AP-Out ↑': [90.0, 84.4, 91.6, 84.9, 84.8, 97.5, 95.9]}
-odin_df_resnet_cifar100 = pd.DataFrame(resnet_cifar100_odin)
+        return pair_list
 
-# ------------- #
-# Leave one out
-# ------------- #
-datasets_loo = ['Imagenet (crop)', 'Imagenet (resize)', 'LSUN (crop)', 'LSUN (resize)', 'Uniform', 'Gaussian']
-densnet_cifar10_lvo = {
-    'Model': ['DensNet-BC CIFAR10'] * len(datasets_loo),
-    'OOD Datasets': datasets_loo,
-    'Method': ['LOO'] * len(datasets_loo),
-    'FPR (95% TPR) ↓': [1.23, 2.93, 3.42, 0.77, 2.61, 0.00],
-    'Detection Error ↓': [2.63, 3.84, 4.12, 2.1, 3.6, 0.2],
-    'AUROC ↑': [99.65, 99.34, 99.25, 99.75, 98.55, 99.84],
-    'AP-In ↑': [99.68, 99.37, 99.29, 99.77, 98.94, 99.86],
-    'AP-Out ↑': [99.64, 99.32, 99.24, 99.73, 97.52, 99.6]
-}
-lvo_df_densnet_cifar10 = pd.DataFrame(densnet_cifar10_lvo)
+    def execute(self, ood_name_list: list, model_name: str, method: str) -> (pd.DataFrame, dict):
+        print('benchmark_pnml. model_name={}, is_5_aug={}, is_genie_estimate={}'.format(model_name,
+                                                                                        self.is_5_aug,
+                                                                                        self.is_genie_estimate))
+        loss_score_dict, self.prob_debug_dict = self.calc_max_prob_score(model_name, ood_name_list)
 
-densnet_cifar100_lvo = {
-    'Model': ['DensNet-BC CIFAR100'] * len(datasets_loo),
-    'OOD Datasets': datasets_loo,
-    'Method': ['LOO'] * len(datasets_loo),
-    'FPR (95% TPR) ↓': [8.29, 20.52, 14.69, 16.23, 79.73, 38.52],
-    'Detection Error ↓': [6.27, 9.98, 8.46, 8.77, 9.46, 8.21],
-    'AUROC ↑': [98.43, 96.27, 97.37, 97.03, 92.0, 94.89],
-    'AP-In ↑': [98.58, 96.66, 97.62, 97.37, 94.77, 96.36],
-    'AP-Out ↑': [98.3, 95.82, 97.18, 96.6, 83.81, 90.01]}
-lvo_df_densnet_cifar100 = pd.DataFrame(densnet_cifar100_lvo)
+        perf_df_list = []
+        trainset_decomp = None
+        for ood_name in ood_name_list:
+            # Compose pair
+            print(ood_name)
+            trainset_labels, testset_output_ind, testset_output_ood = self.load_results_for_max_prob(model_name,
+                                                                                                     ood_name)
+            output_ind_pairs = self.compose_pair(testset_output_ind)
+            output_ood_pairs = self.compose_pair(testset_output_ood)
 
-resnet_cifar10_lvo = {
-    'Model': ['WRN-28-10 CIFAR10'] * len(datasets_loo),
-    'OOD Datasets': datasets_loo,
-    'Method': ['LOO'] * len(datasets_loo),
-    'FPR (95% TPR) ↓': [0.82, 2.94, 1.93, 0.88, 16.39, 0.0],
-    'Detection Error ↓': [2.24, 3.83, 3.24, 2.52, 5.39, 1.03],
-    'AUROC ↑': [99.75, 99.36, 99.55, 99.7, 96.77, 99.58],
-    'AP-In ↑': [99.77, 99.4, 99.57, 99.72, 97.78, 99.71],
-    'AP-Out ↑': [99.75, 99.36, 99.55, 99.68, 94.18, 99.2]}
-lvo_df_resnet_cifar10 = pd.DataFrame(resnet_cifar10_lvo)
+            # Load regret
+            trainset, trainset_labels, testset_ind, testset_ood = self.load_results_for_regret(model_name, ood_name)
 
-resnet_cifar100_lvo = {
-    'Model': ['WRN-28-10 CIFAR10'] * len(datasets_loo),
-    'OOD Datasets': datasets_loo,
-    'Method': ['LOO'] * len(datasets_loo),
-    'FPR (95% TPR) ↓': [9.17, 24.53, 14.22, 16.53, 99.9, 98.26],
-    'Detection Error ↓': [6.67, 11.64, 8.2, 9.14, 14.86, 16.88],
-    'AUROC ↑': [98.22, 95.18, 97.38, 96.77, 83.44, 93.04],
-    'AP-In ↑': [98.39, 95.5, 97.62, 97.03, 89.43, 88.64],
-    'AP-Out ↑': [98.07, 94.78, 97.16, 96.41, 71.2, 71.62]}
-lvo_df_resnet_cifar100 = pd.DataFrame(resnet_cifar100_lvo)
+            # Compute regret
+            regret_ind_np, regret_ood_np, trainset_decomp = compute_regret_from_2_classes(trainset, trainset_labels,
+                                                                                          testset_ind, testset_ood,
+                                                                                          output_ind_pairs,
+                                                                                          output_ood_pairs,
+                                                                                          trainset_decomp)
+            regret_score_dict = {'IND': regret_ind_np.tolist(), 'OOD': regret_ood_np.tolist()}
+            perf_regret = self.compute_perf_single(model_name, method, ood_name, regret_score_dict, {})
+            perf_df_list.append(perf_regret)
+
+        df = pd.concat(perf_df_list)
+        df.index = pd.RangeIndex(len(df.index))
+
+        debug_dict = {'regret': self.regret_debug_dict, 'prob': self.prob_debug_dict}
+        return df, debug_dict
+
+
+def benchmark_pnml(ood_name_list: list, model_name: str, method: str,
+                   base_dir_path=osp.join('..', 'output', 'embedding'),
+                   is_5_aug: bool = False,
+                   is_genie_estimate: bool = False) -> (pd.DataFrame, dict):
+    # benchmark_h = BenchmarkPNML(base_dir_path, is_5_aug, is_genie_estimate)
+    benchmark_h = BenchmarkPNML2Regrets(base_dir_path, is_5_aug, is_genie_estimate)
+    df, debug_dict = benchmark_h.execute(ood_name_list, model_name, method)
+    return df, debug_dict
+
+
+def cat_benchmark_df(odin_df: pd.DataFrame,
+                     lvo_df: pd.DataFrame,
+                     pnml_df: pd.DataFrame,
+                     pnml_5_aug_df: pd.DataFrame,
+                     ) -> pd.DataFrame:
+    odin_df_dropped = odin_df[odin_df['OOD Datasets'] != 'iSUN']
+    odin_df_dropped.index = pd.RangeIndex(len(odin_df_dropped.index))
+
+    pnml_df_dropped = pnml_df[pnml_df['OOD Datasets'] != 'iSUN']
+    pnml_df_dropped.index = pd.RangeIndex(len(pnml_df_dropped.index))
+
+    pnml_5_aug_df_dropped = pnml_5_aug_df[pnml_5_aug_df['OOD Datasets'] != 'iSUN']
+    pnml_5_aug_df_dropped.index = pd.RangeIndex(len(pnml_5_aug_df_dropped.index))
+
+    merge_df = pd.concat([odin_df_dropped,
+                          lvo_df,
+                          pnml_df_dropped,
+                          pnml_5_aug_df_dropped
+                          ]).sort_index(kind='merge')
+
+    return merge_df.round(1)
+
+
+if __name__ == '__main__':
+    from tqdm import tqdm as tqdm
+
+    base_dir = osp.join('..', 'output', 'embedding')
+
+    ood_name_benchmark_list = ['Imagenet (crop)', 'Imagenet (resize)', 'LSUN (crop)', 'LSUN (resize)',
+                               'iSUN', 'Uniform', 'Gaussian']
+
+    pnml_df_resnet_cifar100, _ = benchmark_pnml(ood_name_benchmark_list, 'DensNet-BC CIFAR100', 'pNML', base_dir,
+                                                is_5_aug=False,
+                                                is_genie_estimate=False)
+    print(pnml_df_resnet_cifar100[['AUROC ↑', 'AP-In ↑']])
