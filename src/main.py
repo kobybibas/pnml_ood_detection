@@ -4,9 +4,9 @@ import os
 
 from loguru import logger
 
-from dataset_utilities import transform_cifar_train
 from experimnet_utilities import Experiment
-from experimnet_utilities import experiment_name_valid
+from experimnet_utilities import experiment_name_valid, testsets_name
+from model_utilities import load_model
 from pnml_utilities import extract_features, save_features
 from result_tracker_utilities import ResultTracker
 from train_utilities import test_pretrained_model
@@ -60,20 +60,19 @@ def run_experiment(args: dict):
 
     ################
     # Load pretrained model
-    model = experiment_h.get_model()
-    model = test_pretrained_model(model, dataloaders, is_test=params['eval_pretrained'])
-    logger.info(model)
+    model, model_list = experiment_h.get_model()
+    model_list.insert(0, None)
 
-    logger.info('Execute pNML')
-    features_datasets_dict = extract_features(model, dataloaders, experiment_h)
-    save_features(features_datasets_dict, experiment_h, tracker.output_dir_embedding, suffix='')
+    for i, model_path in enumerate(model_list):
+        if model_path is not None:
+            logger.info('Load model: {}'.format(model_path))
+            model = load_model(model, model_path)
+        model = test_pretrained_model(model, dataloaders, is_test=params['eval_pretrained'])
 
-    # Augment dataset
-    dataloaders['train'].dataset.transform = transform_cifar_train
-    dataloaders['test'].dataset.transform = transform_cifar_train
-    for i in range(params['augment_num']):
+        logger.info('Execute pNML')
+        suffix = '_' + str(i)
         features_datasets_dict = extract_features(model, dataloaders, experiment_h)
-        save_features(features_datasets_dict, experiment_h, tracker.output_dir_embedding, suffix='_' + str(i))
+        save_features(features_datasets_dict, experiment_h, tracker.output_dir_embedding, suffix=suffix)
 
     logger.info('Finished!')
 
@@ -86,13 +85,15 @@ if __name__ == "__main__":
                         type=str)
     parser.add_argument('-testset',
                         help='Testset to evaluate',
+                        choices=testsets_name,
                         type=str)
     parser.add_argument('-prefix',
                         default='',
                         help='Output directory name prefix',
                         type=str)
     parser.add_argument('-num_workers',
-                        help='CPU workers for dataloader',
+                        default=4,
+                        help='Number of CPU workers',
                         type=int)
 
     args = vars(parser.parse_args())

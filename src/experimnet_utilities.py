@@ -3,10 +3,12 @@ import types
 
 from loguru import logger
 from pytorchcv.model_provider import get_model as ptcv_get_model
-
+import os.path as osp
 from dataset_utilities import create_cifar10_dataloaders, create_cifar100_dataloaders
 from dataset_utilities import create_image_folder_trainloader
 from dataset_utilities import create_uniform_noise_dataloaders, create_gaussian_noise_dataloaders
+from glob import glob
+from model_utilities import add_feature_extractor_method
 
 experiment_name_valid = [
     'densenet_cifar10',
@@ -16,14 +18,16 @@ experiment_name_valid = [
 ]
 
 testsets_name = [
+    'cifar10',
+    'cifar100',
     # Tiny - ImageNet(crop)
-    'Imagenet'
+    'Imagenet',
     # Tiny-ImageNet (resize)
-    'Imagenet_resize'
+    'Imagenet_resize',
     # LSUN (crop)
-    'LSUN'
+    'LSUN',
     # LSUN (resize)
-    'LSUN_resize'
+    'LSUN_resize',
     # iSUN
     'iSUN',
     # Gaussian noise
@@ -129,32 +133,22 @@ class Experiment:
         return dataloaders
 
     def get_model(self):
-        if self.exp_type == 'densenet_cifar10':
-            model = ptcv_get_model("densenet100_k12_bc_cifar10", pretrained=True)
-        elif self.exp_type == 'densenet_cifar100':
-            model = ptcv_get_model("densenet100_k12_bc_cifar100", pretrained=True)
-        elif self.exp_type == 'resnet_cifar10':
-            model = ptcv_get_model("wrn28_10_cifar10", pretrained=True)
-        elif self.exp_type == 'resnet_cifar100':
-            model = ptcv_get_model("wrn28_10_cifar100", pretrained=True)
+        model_name, dataset_name = self.exp_type.split('_')
+
+        # Get list of pretrained models
+        model_list = glob(osp.join(self.params['pretrained_path'], '{}_{}_*.pth'.format(model_name, dataset_name)))
+        model_list.sort()
+
+        if model_name == 'densenet':
+            model = ptcv_get_model("densenet100_k12_bc_%s" % dataset_name, pretrained=True)
+        elif model_name == 'resnet':
+            model = ptcv_get_model("wrn28_10_%s" % dataset_name, pretrained=True)
         else:
             raise NameError('No model for experiment type: %s' % self.exp_type)
 
-        # Add feature extractor method
-        def my_forward(self, x):
-            x = self.features(x)
-            x = x.view(x.size(0), -1)
-            self.features_out = x.clone()
-            x = self.output(x)
-            return x
-
-        def get_features(self):
-            return self.features_out
-
-        model.forward = types.MethodType(my_forward, model)
-        model.get_features = types.MethodType(get_features, model)
+        model = add_feature_extractor_method(model)
         model.eval()
-        return model
+        return model, model_list
 
     def get_exp_name(self):
         return self.exp_type + '_' + self.params['testset']

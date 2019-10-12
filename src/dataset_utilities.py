@@ -4,50 +4,36 @@ from torchvision import transforms, datasets
 
 from dataset_classes import UniformNoiseDataset, GaussianNoiseDataset, ImageFolderOOD
 
+# Cifar10
 mean_rgb_cifar10 = (0.4914, 0.4822, 0.4465)
 std_rgb_cifar10 = (0.2023, 0.1994, 0.2010)
+transform_cifar10_test = transforms.Compose([
+    transforms.Resize(32),
+    transforms.ToTensor(),
+    transforms.Normalize(mean_rgb_cifar10, std_rgb_cifar10),
+])
 
-# todo: use this?
-dataset_details = {
-    'cifar10': {
-        'n_class': 10,
-        'mean': [0.49137255, 0.48235294, 0.44666667],
-        'std': [0.24705882, 0.24352941, 0.26156863],
-    },
-    'cifar100': {
-        'n_class': 100,
-        'mean': [0.5071, 0.4865, 0.4409],
-        'std': [0.2673, 0.2564, 0.2762],
-    },
-}
-
-jitter_param = 0.4
+# Cifar100
+mean_rgb_cifar100 = (0.4914, 0.4822, 0.4465)
+std_rgb_cifar100 = (0.2023, 0.1994, 0.2010)
+transform_cifar100_test = transforms.Compose([
+    transforms.Resize(32),
+    transforms.ToTensor(),
+    transforms.Normalize(mean_rgb_cifar100, std_rgb_cifar100),
+])
 
 transform_cifar_train = transforms.Compose([
     transforms.RandomCrop(size=32, padding=4),
     transforms.RandomHorizontalFlip(),
-    # transforms.ColorJitter(
-    #     brightness=jitter_param,
-    #     contrast=jitter_param,
-    #     saturation=jitter_param),
     transforms.ToTensor(),
     transforms.Normalize(
         mean=mean_rgb_cifar10,
         std=std_rgb_cifar10),
 ])
 
-transform_cifar10_test = transforms.Compose([
-    transforms.CenterCrop(32),
-    transforms.ToTensor(),
-    transforms.Normalize(mean_rgb_cifar10, std_rgb_cifar10),
-])
-transform_cifar100_test = transform_cifar10_test
-transform_noise = transforms.Compose([
-    transforms.Normalize(mean_rgb_cifar10, std_rgb_cifar10),
-])
 
-
-def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, num_workers: int = 4):
+def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, num_workers: int = 4,
+                               is_shuffle: bool = False):
     """
     create train and test pytorch dataloaders for CIFAR10 dataset
     :param data_dir: the folder that will contain the data
@@ -58,10 +44,10 @@ def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, 
     trainset = datasets.CIFAR10(root=data_dir,
                                 train=True,
                                 download=True,
-                                transform=transform_cifar10_test)
+                                transform=transform_cifar10_test if is_shuffle is False else transform_cifar_train)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
-                                  shuffle=False,
+                                  shuffle=is_shuffle,
                                   num_workers=num_workers)
 
     testset = datasets.CIFAR10(root=data_dir,
@@ -77,7 +63,8 @@ def create_cifar10_dataloaders(data_dir: str = './data', batch_size: int = 128, 
     return trainloader, testloader, classes
 
 
-def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128, num_workers: int = 4):
+def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128, num_workers: int = 4,
+                                is_shuffle: bool = False):
     """
     create train and test pytorch dataloaders for CIFAR100 dataset
     :param data_dir: the folder that will contain the data
@@ -88,16 +75,16 @@ def create_cifar100_dataloaders(data_dir: str = './data', batch_size: int = 128,
     trainset = datasets.CIFAR100(root=data_dir,
                                  train=True,
                                  download=True,
-                                 transform=transform_cifar10_test)
+                                 transform=transform_cifar100_test if is_shuffle is False else transform_cifar_train)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
-                                  shuffle=False,
+                                  shuffle=is_shuffle,
                                   num_workers=num_workers)
 
     testset = datasets.CIFAR100(root=data_dir,
                                 train=False,
                                 download=True,
-                                transform=transform_cifar10_test)
+                                transform=transform_cifar100_test)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,

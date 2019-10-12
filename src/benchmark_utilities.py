@@ -31,6 +31,7 @@ class BenchmarkPNML:
         self.output_debug_dict = None
         self.regret_debug_dict = None
         self.method = 'pNML'
+        self.model_suffix = '_1'
 
     def load_model_outputs(self, model_name: str, testset_name: str) -> (np.ndarray, np.ndarray, np.ndarray):
         trainset_name = model_name.split(' ')[-1].lower()
@@ -39,12 +40,14 @@ class BenchmarkPNML:
 
         # Testset IND
         testset_output_ind_path = osp.join(self.base_dir,
-                                           model_file_name + '_' + trainset_name + '_' + 'test_outputs_pnml.npy')
+                                           model_file_name + '_' + trainset_name + '_' + 'test_outputs_pnml{}.npy'.format(
+                                               self.model_suffix))
         testset_output_ind = np.load(testset_output_ind_path)
 
         # Testset OOD
         testset_output_ood_path = osp.join(self.base_dir,
-                                           model_file_name + '_' + testset_name_file + '_' + 'test_outputs_pnml.npy')
+                                           model_file_name + '_' + testset_name_file + '_' + 'test_outputs_pnml{}.npy'.format(
+                                               self.model_suffix))
         testset_output_ood = np.load(testset_output_ood_path)
 
         # Trainset labels load
@@ -59,7 +62,9 @@ class BenchmarkPNML:
         model_file_name = model_name_map[model_name]
 
         # Trainset load
-        trainset_path = osp.join(self.base_dir, model_file_name + '_' + trainset_name + '_' + 'train_pnml.npy')
+        trainset_path = osp.join(self.base_dir,
+                                 model_file_name + '_' + trainset_name + '_' + 'train_pnml{}.npy'.format(
+                                     self.model_suffix))
         trainset = np.load(trainset_path).T
 
         # Trainset labels load
@@ -67,7 +72,9 @@ class BenchmarkPNML:
         trainset_labels = np.load(trainset_labels_path)
 
         # Testset In-Dist load
-        testset_ind_path = osp.join(self.base_dir, model_file_name + '_' + trainset_name + '_' + 'test_pnml.npy')
+        testset_ind_path = osp.join(self.base_dir,
+                                    model_file_name + '_' + trainset_name + '_' + 'test_pnml{}.npy'.format(
+                                        self.model_suffix))
         testset_ind = np.load(testset_ind_path).T
 
         # Testset OOD

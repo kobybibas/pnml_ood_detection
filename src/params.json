@@ -4,6 +4,7 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
+        "pretrained_path": "../models",
         "augment_num": 0
     },
     "densenet_cifar100": {
@@ -11,6 +12,7 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
+        "pretrained_path": "../models",
         "augment_num": 0
     },
     "resnet_cifar10": {
@@ -18,6 +20,7 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
+        "pretrained_path": "../models",
         "augment_num": 0
     },
     "resnet_cifar100": {
@@ -25,6 +28,7 @@
         "batch_size": 128,
         "num_workers": 4,
         "eval_pretrained": false,
+        "pretrained_path": "../models",
         "augment_num": 0
     }
 }
