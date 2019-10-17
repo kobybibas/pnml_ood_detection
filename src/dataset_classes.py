@@ -16,8 +16,7 @@ class ImageFolderOOD(datasets.VisionDataset):
                         glob(osp.join(root, '*', '*.png')) + \
                         glob(osp.join(root, '*', '*.jpg'))
         if len(img_path_list) == 0:
-            logger.error('Dataset was not downloaded.')
-            ValueError('Failed on ImageFolderOOD')
+            logger.error('Dataset was not downloaded {}'.format(root))
 
         img_list = []
         for img_path in img_path_list:

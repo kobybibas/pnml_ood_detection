@@ -63,6 +63,7 @@ def calc_performance_in_out_dist(true_ind, score_ind):
     """
     Calculate evaluation matrics
     """
+
     score_ood = 1 - np.array(score_ind)
     true_ood = 1 - np.array(true_ind)
 
@@ -103,6 +104,9 @@ def calc_performance_in_out_dist(true_ind, score_ind):
 
     # Detection Error: when TPR is 95%.
     detection_error = 0.5 * (1 - 0.95) + 0.5 * fpr_in_tpr_95
+
+    import matplotlib.pyplot as plt
+    plt.plot(fpr,tpr)
 
     ood_df = pd.DataFrame({
         'FPR (95% TPR) ↓': [fpr_in_tpr_95 * 100],

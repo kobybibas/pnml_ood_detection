@@ -42,17 +42,22 @@ class BenchmarkPNML:
         testset_output_ind_path = osp.join(self.base_dir,
                                            model_file_name + '_' + trainset_name + '_' + 'test_outputs_pnml{}.npy'.format(
                                                self.model_suffix))
+        print('testset_output_ind_path: ', testset_output_ind_path)
         testset_output_ind = np.load(testset_output_ind_path)
 
         # Testset OOD
         testset_output_ood_path = osp.join(self.base_dir,
                                            model_file_name + '_' + testset_name_file + '_' + 'test_outputs_pnml{}.npy'.format(
                                                self.model_suffix))
+        print('testset_output_ood_path: ', testset_output_ood_path)
         testset_output_ood = np.load(testset_output_ood_path)
 
         # Trainset labels load
         trainset_labels_path = osp.join(self.base_dir, trainset_name + '_' + 'train_labels.npy')
+        print('trainset_labels_path: ', trainset_labels_path)
         trainset_labels = np.load(trainset_labels_path)
+
+        # testset_output_ood = testset_output_ind # todo: remove
         return trainset_labels, testset_output_ind, testset_output_ood
 
     def load_model_embedding(self, model_name: str, testset_name: str) -> (np.ndarray, np.ndarray,
@@ -65,6 +70,7 @@ class BenchmarkPNML:
         trainset_path = osp.join(self.base_dir,
                                  model_file_name + '_' + trainset_name + '_' + 'train_pnml{}.npy'.format(
                                      self.model_suffix))
+        print('trainset_path: ', trainset_path)
         trainset = np.load(trainset_path).T
 
         # Trainset labels load
@@ -75,19 +81,21 @@ class BenchmarkPNML:
         testset_ind_path = osp.join(self.base_dir,
                                     model_file_name + '_' + trainset_name + '_' + 'test_pnml{}.npy'.format(
                                         self.model_suffix))
+        print('testset_ind_path: ', testset_ind_path)
         testset_ind = np.load(testset_ind_path).T
 
         # Testset OOD
         testset_ood_path = osp.join(self.base_dir, model_file_name + '_' + testset_name_file + '_' + 'test_pnml.npy')
+        print('testset_ood_path: ', testset_ood_path)
         testset_ood = np.load(testset_ood_path).T
-
+        # testset_ood = testset_ind # # todo: remove
         return trainset, trainset_labels, testset_ind, testset_ood
 
     def compute_perf_single(self, model_name: str, ood_name: str, score_ind: list, score_ood: list):
         assert isinstance(score_ind, list) and isinstance(score_ood, list)
 
         y_score_ind = score_ind + score_ood
-        y_score_ind = 1 - np.array(y_score_ind)
+        y_score_ind = 1 / np.array(y_score_ind)
         y_true_ind = [True] * len(score_ind) + [False] * len(score_ood)
         perf_regret = calc_performance_in_out_dist(y_true_ind, y_score_ind)
 
@@ -143,71 +151,23 @@ class BenchmarkPNML:
         return df, debug_dict
 
 
-class BenchmarkPNMLEnsemble(BenchmarkPNML):
-    def load_model_embedding(self, model_name: str, testset_name: str) -> (np.ndarray, np.ndarray,
-                                                                           np.ndarray, np.ndarray):
-        aug_num = 1
-
-        # Trainset load
-        trainset_name = model_name.split(' ')[-1].lower()
-        trainset_path = osp.join(self.base_dir,
-                                 model_name_map[model_name] + '_' + trainset_name + '_' + 'train_pnml.npy')
-        trainset = np.load(trainset_path).T
-
-        # Load ensemble results
-        trainset_list = []
-        for i in range(aug_num):
-            trainset_path = osp.join(self.base_dir,
-                                     model_name_map[
-                                         model_name] + '_' + trainset_name + '_' + 'train_pnml_%d.npy' % i)
-            trainset_list.append(np.load(trainset_path).T)
-        trainset = np.vstack([trainset] + trainset_list)
-
-        # Trainset labels load
-        trainset_labels_path = osp.join(self.base_dir, trainset_name + '_' + 'train_labels.npy')
-        trainset_labels = np.load(trainset_labels_path)
-
-        # self.is_5_aug is True:
-        #     trainset_labels_list = []
-        #     for i in range(aug_num):
-        #         trainset_labels_list.append(np.load(trainset_labels_path).T)
-        #     trainset_labels = np.hstack([trainset_labels] + trainset_labels_list)
-
-        # Testset In-Dist load
-        testset_ind_path = osp.join(self.base_dir,
-                                    model_name_map[model_name] + '_' + trainset_name + '_' + 'test_pnml.npy')
-        testset_ind = np.load(testset_ind_path).T
-
-        # Load ensemble results
-        testset_ind_list = []
-        for i in range(aug_num):
-            testset_ind_path = osp.join(self.base_dir,
-                                        model_name_map[
-                                            model_name] + '_' + trainset_name + '_' + 'test_pnml_%d.npy' % i)
-            testset_ind_list.append(np.load(testset_ind_path).T)
-        testset_ind = np.vstack([testset_ind] + testset_ind_list)
-
-        # Testset OOD
-        testset_ood_path = osp.join(self.base_dir, model_name_map[model_name] + '_' + testset_name_map[
-            testset_name] + '_' + 'test_pnml.npy')
-        testset_ood = np.load(testset_ood_path).T
-
-        # Load ensemble results
-        testset_ood_list = []
-        for i in range(aug_num):
-            testset_ood_path = osp.join(self.base_dir,
-                                        model_name_map[model_name] + '_' + testset_name_map[
-                                            testset_name] + '_' + 'test_pnml_%d.npy' % i)
-            testset_ood_list.append(np.load(testset_ood_path).T)
-        testset_ood = np.vstack([testset_ood] + testset_ood_list)
-
-        return trainset, trainset_labels, testset_ind, testset_ood
+class SingleBenchmarkPNML(BenchmarkPNML):
+    def compose_pair(self, outputs, first_top: int = 0, second_top: int = 0):
+        indexes = np.argsort(-outputs, axis=1)
+        labels_min_list = indexes[:, first_top]
+        labels_max_list = indexes[:, first_top]
+        pair_list = []
+        for label_min, label_max in zip(labels_min_list, labels_max_list):
+            pair_list.append((label_min, label_max))
+        return pair_list
 
 
 def benchmark_pnml(ood_name_list: list,
                    model_name: str,
                    base_dir_path=osp.join('..', 'output', 'embedding')) -> (pd.DataFrame, dict):
-    benchmark_h = BenchmarkPNML(base_dir_path)
+    # benchmark_h = BenchmarkPNML(base_dir_path)
+    benchmark_h = SingleBenchmarkPNML(base_dir_path)
+
     df, debug_dict = benchmark_h.execute(ood_name_list, model_name)
     return df, debug_dict
 
@@ -239,5 +199,5 @@ if __name__ == '__main__':
                                'Gaussian'
                                ]
 
-    pnml_df_resnet_cifar100, _ = benchmark_pnml(ood_name_benchmark_list, 'DensNet-BC CIFAR100', base_dir)
+    pnml_df_resnet_cifar100, _ = benchmark_pnml(ood_name_benchmark_list, 'DensNet-BC CIFAR10', base_dir)
     print(pnml_df_resnet_cifar100[['AUROC ↑', 'AP-In ↑']])

@@ -33,7 +33,8 @@ def project_on_trainset(x_m_test: np.ndarray, u: np.ndarray, eta: np.ndarray, vh
     x_t_u_2 = (x_m_test.T.dot(u)) ** 2
     div = x_t_u_2 / (eta.T + lamb)
 
-    regret_np = np.log(1 + (1 / n) * div.sum(axis=1)) / np.log(log_base)
+    # regret_np = np.log(1 + (1 / n) * div.sum(axis=1)) / np.log(log_base)
+    regret_np = (1 / n) * div.sum(axis=1)  # / np.log(log_base)
     return regret_np
 
 
