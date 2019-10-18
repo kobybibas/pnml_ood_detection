@@ -29,7 +29,8 @@ In order to train model yourself:
 CUDA_VISIBLE_DEVICES=0 python main_train.py -model_name densenet -dataset_name cifar10 
 ```
 
-Or using tmuxp, train for all model architectures and trainsets:
+Or using tmuxp: https://github.com/tmux-python/tmuxp
+Train for all model architectures and trainsets:
 ```bash
 cd bash_scripts
 tmuxp load train.yaml
