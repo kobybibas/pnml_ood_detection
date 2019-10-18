@@ -83,6 +83,9 @@ if __name__ == "__main__":
                         help='Mode directory to which the model will be saved')
     parser.add_argument('-output_dir', type=str, default=osp.join('..', 'output'),
                         help='Logs and products.')
+    parser.add_argument('-is_svd', type=bool, action='store_true',
+                        default=False,
+                        help='')
 
     args = parser.parse_args()
 

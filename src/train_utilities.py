@@ -29,6 +29,18 @@ class ModelWrapper(pl.LightningModule):
         is_correct = (predicted == y).sum()
         acc = is_correct.double() / len(x)
 
+        loss_svd = 0
+        if self.hparams.with_svd:
+
+            for label in torch.unique(y):
+                batch_single_class = batch[y == label, :]
+                _, s, _ = torch.svd(batch_single_class, compute_uv=False)
+                eta = s ** 2
+                loss_svd += 1 / len(batch_single_class) * (eta[1:]/eta[0]).sum()
+
+            loss_svd /= len(label)
+
+            loss += loss_svd
         lr = 0
         for param_group in self.trainer.optimizers[0].param_groups:
             lr = param_group['lr']
@@ -36,6 +48,7 @@ class ModelWrapper(pl.LightningModule):
         return {'loss': loss,
                 'log': {'phase': 'Train',
                         'loss': loss,
+                        'loss_svd': loss_svd,
                         'acc': acc,
                         'lr': lr,
                         'batch_nb': batch_nb,

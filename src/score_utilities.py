@@ -61,6 +61,7 @@ def project_on_trainset(x_m_test: np.ndarray,
                         lamb: float = 1e-9) -> np.ndarray:
     n = len(vh)
 
+    # x_m_test = x_m_test / np.linalg.norm(x_m_test, axis=0)  # keep?
     x_t_u_2 = (x_m_test.T.dot(u)) ** 2
     div = x_t_u_2 / (eta.T + lamb)
 
@@ -77,3 +78,15 @@ def project_testset(testset: np.ndarray, test_pred: np.ndarray, svd_list: list) 
 
     distance_np = np.hstack(distance_list)
     return distance_np
+
+
+def decompose_train_with_test(trainset: np.ndarray, labels: np.ndarray, testset: np.ndarray, test_pred: np.ndarray):
+    label_list = np.unique(labels).tolist()
+    svd_list = []
+    for num in tqdm(label_list):
+        trainset_single_cls = trainset[:, labels == num]
+        testset_single_cls = testset[:, test_pred == num]
+        for single in testset_single_cls:
+            joint = np.hstack((trainset_single_cls, single))
+            u, eta, vh = execute_svd_decomposition(joint)
+            svd_list.append((u, eta, vh))

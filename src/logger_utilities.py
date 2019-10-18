@@ -35,6 +35,7 @@ class MyLogger(LightningLoggerBase):
             self.logger.info('    {}: [{:03d}/{:03d}] [Loss Acc]=[{:.3f} {:.3f}] lr={}'.format(
                 metrics['phase'], metrics['batch_nb'], metrics['nb_training_batches'], metrics['loss'], metrics['acc'],
                 metrics['lr']))
+            self.logger.info('Loss svd: ', metrics['loss_svd'])
 
         elif metrics['phase'] == 'Val':
             self.logger.info("Epoch [{:02d}/{:02d}]: {}. [Loss Acc]=[{:.3f} {:.3f}] {:.2f} sec".format(
