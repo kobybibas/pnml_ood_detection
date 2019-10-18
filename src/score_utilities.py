@@ -3,6 +3,26 @@ import numpy as np
 from tqdm import tqdm
 
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return e_x / e_x.sum(axis=1, keepdims=True)
+
+
+def compute_leverage(trainset: np.ndarray, labels: np.ndarray, testset: np.ndarray, test_pred: np.ndarray):
+    label_list = np.unique(labels).tolist()
+    score_list = []
+    for num in tqdm(label_list):
+        trainset_single_cls = trainset[:, labels == num]
+        testset_single_cls = testset[:, test_pred == num]
+        for single in testset_single_cls.T:
+            X = np.hstack((trainset_single_cls, single[:, np.newaxis]))
+
+            score = single.T.dot(np.linalg.inv(X.dot(X.T))).dot(single)
+            score_list.append(score)
+    return score_list
+
+
 def load_trainset_features(model_name: str, trainset_name: str, features_path: str):
     prefix = '{}_{}_{}_{}'.format(model_name, trainset_name, trainset_name, 'trainset')
 
@@ -29,7 +49,7 @@ def load_test_products(model_name: str, trainset_name: str, testset_name: str, f
     testset_outputs = np.load(file_name)
     testset_pred = testset_outputs.argmax(axis=1)
 
-    return testset_features, testset_pred
+    return testset_features, testset_outputs, testset_pred
 
 
 def execute_svd_decomposition(x_m_train: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray):
@@ -60,8 +80,6 @@ def project_on_trainset(x_m_test: np.ndarray,
                         u: np.ndarray, eta: np.ndarray, vh: np.ndarray,
                         lamb: float = 1e-9) -> np.ndarray:
     n = len(vh)
-
-    # x_m_test = x_m_test / np.linalg.norm(x_m_test, axis=0)  # keep?
     x_t_u_2 = (x_m_test.T.dot(u)) ** 2
     div = x_t_u_2 / (eta.T + lamb)
 

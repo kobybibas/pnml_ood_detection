@@ -3,13 +3,13 @@ import os
 import os.path as osp
 from argparse import ArgumentParser
 
-import numpy as np
 import sys
 import torch
 from loguru import logger as loguru_logger
 from pytorchcv.model_provider import get_model as ptcv_get_model
 
 from logger_utilities import MyLogger
+from model_utilities import add_feature_extractor_method
 from train_utilities import ModelWrapper
 from train_utilities import MyTrainer as Trainer
 
@@ -36,9 +36,10 @@ def run(params):
         model = ptcv_get_model("wrn28_10_%s" % params.dataset, pretrained=True)
     else:
         logger.error('model_name {} is not supported.'.format(params.model))
+    add_feature_extractor_method(model)
 
     # Reset last layer for quick training
-    model.output = torch.nn.Linear(model.output.in_features, model.output.out_features)
+    # model.output = torch.nn.Linear(model.output.in_features, model.output.out_features)
 
     wrapper_h = ModelWrapper(model, params)
     trainer = Trainer(logger=logger,
@@ -49,7 +50,6 @@ def run(params):
                       row_log_interval=50,
                       gpus=None if sys.platform == 'darwin' or not torch.cuda.is_available() else 1,
                       checkpoint_callback=False)
-
     trainer.fit(wrapper_h)
 
     save_path = osp.join(params.model_dir, '{}_{}.pth'.format(params.model, params.dataset))
@@ -58,7 +58,7 @@ def run(params):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = ArgumentParser(description='Train model script.')
     parser.add_argument('-dataset', type=str, default='cifar10',
                         choices=['cifar10', 'cifar100'],
                         help='Dataset to train on (default: cifar10)')
@@ -66,26 +66,23 @@ if __name__ == "__main__":
                         choices=['densenet', 'resnet'],
                         help='Model architecture to use (default: densenet)')
     parser.add_argument('-batch_size', type=int, default=128,
-                        help='input batch size for training (default: 64)')
-    parser.add_argument('-epochs', type=int, default=20,
+                        help='Input batch size for training (default: 128)')
+    parser.add_argument('-epochs', type=int, default=10,
                         help='number of epochs to train (default: 10)')
     parser.add_argument('-lr', type=float, default=1e-3,
                         help='learning rate (default: 1e-3)')
-    parser.add_argument('-step_size', type=float, default=6,
-                        help='ADAM lr scheduler step size (default: 30)')
+    parser.add_argument('-step_size', type=float, default=3,
+                        help='ADAM lr scheduler step size (default: 3)')
     parser.add_argument('-weight_decay', type=float, default=0.0005,
                         help='l2 regularization (default: ﻿0.0005)')
     parser.add_argument('-num_workers', type=int, default=4,
                         help='Number of CPU workers (default: 4)')
     parser.add_argument('-data_dir', type=str, default=osp.join('..', 'data'),
-                        help='Data dir to which the dataset will be downloaded')
+                        help='Data directory to which the dataset will be downloaded')
     parser.add_argument('-model_dir', type=str, default=osp.join('..', 'models'),
-                        help='Mode directory to which the model will be saved')
+                        help='Model directory to which the model will be saved')
     parser.add_argument('-output_dir', type=str, default=osp.join('..', 'output'),
-                        help='Logs and products.')
-    parser.add_argument('-is_svd', type=bool, action='store_true',
-                        default=False,
-                        help='')
+                        help='Output directory to which logs and products will be saved')
 
     args = parser.parse_args()
 

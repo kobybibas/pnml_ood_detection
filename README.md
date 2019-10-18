@@ -1,5 +1,4 @@
-# pnml_ood
-
+# OOD Detection
 
 Install requirements: 
 ```bash
@@ -23,12 +22,11 @@ Steps:
 There are pretrained model in here:
 TODO
 Simply download and extract to model directory.
-The path tree after extraction:
-TODO.
+
 
 In order to train model yourself:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python main_train.py -dataset_name cifar10 -model_name resnet 
+CUDA_VISIBLE_DEVICES=0 python main_train.py -model_name densenet -dataset_name cifar10 
 ```
 
 Or using tmuxp, train for all model architectures and trainsets:
@@ -38,6 +36,7 @@ tmuxp load train.yaml
 ```
 
 ## 2. Extract features and logtis:
+Using the pretrained model, save the feautres of the last layer and the model outputs logits.
 ```
 cd src
 CUDA_VISIBLE_DEVICES=0 python main.py -model densenet -trainset cifar10
@@ -50,20 +49,59 @@ tmuxp load extract_features.yaml
 ```
 
 The tree path after executing for DenseNet and WideResNet:
-TODO
+```
+.
+├── README.md
+├── bash_scripts
+│   ├── extract.yaml
+│   ├── score.yaml
+│   └── train.yaml
+├── data
+├── models
+├── notebooks
+├── output
+│   ├── features
+│   ├── logits
+├── requirements.txt
+└── src
+```
 
 ## 3. Compute In-Dist/OutOfDist score
-The tree path after the score computation:
-TODO
+Compute the score from which one can determine if the test sample is In or Out of Distribution.
 
+```bash
+cd bash_scripts
+CUDA_VISIBLE_DEVICES=0 python  main_score.py -model densenet -dataset cifar10 
+```
 Or using tmuxp
 ```bash
 cd bash_scripts
 tmuxp load compute_score.yaml
 ```
 
+The tree path after the score computation:
+```
+.
+├── README.md
+├── bash_scripts
+│   ├── extract.yaml
+│   ├── score.yaml
+│   └── train.yaml
+├── data
+├── models
+├── notebooks
+│   ├── benchmark.ipynb
+│   └── plot_functions.ipynb
+├── output
+│   ├── features
+│   ├── logits
+│   ├── score
+├── requirements.txt
+└── src
+```
 
 ## 4. Calculate performance
-Using notebook
-TODO
+Using the notebook
+[./notebooks/ benchmark.ipynb](./notebooks/ benchmark.ipynb)
+
 

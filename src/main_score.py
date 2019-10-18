@@ -58,8 +58,8 @@ def run_experiment(params):
     for ood_num, ood_name in enumerate(testsets_name_iter):
         logger.info('[{}/{}] Compute score for {}'.format(ood_num, len(testsets_name_iter) - 1, ood_name))
 
-        testset_features, testset_pred = load_test_products(params.model, params.trainset, ood_name,
-                                                            params.features_dir, params.logits_dir)
+        testset_features, _, testset_pred = load_test_products(params.model, params.trainset, ood_name,
+                                                               params.features_dir, params.logits_dir)
 
         ood_score = project_testset(testset_features, testset_pred, svd_list)
 
@@ -74,31 +74,31 @@ def run_experiment(params):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Applications of Deep PNML')
+    parser = argparse.ArgumentParser(description='Compute Out Of Distribution score')
     parser.add_argument('-model',
                         help='Model architecture name',
                         default='densenet',
                         choices=['densenet', 'resnet'],
                         type=str)
     parser.add_argument('-trainset',
-                        help='Trainset of the model',
+                        help='Trainset that used to train the model',
                         default='cifar10',
                         choices=['cifar10', 'cifar100'],
                         type=str)
     parser.add_argument('-output_dir',
-                        help='Trainset of the model',
+                        help='Output directory to which logs and products will be saved',
                         default=osp.join('..', 'output'),
                         type=str)
     parser.add_argument('-score_dir',
-                        help='Trainset of the model',
+                        help='Score directory to which Out Of Distribution score will be saved',
                         default=osp.join('..', 'output', 'score'),
                         type=str)
     parser.add_argument('-logits_dir',
-                        help='Trainset of the model',
+                        help='Logits directory from which the model output will be loaded',
                         default=osp.join('..', 'output', 'logits'),
                         type=str)
     parser.add_argument('-features_dir',
-                        help='Trainset of the model',
+                        help='Features directory from which the features will be loaded',
                         default=osp.join('..', 'output', 'features'),
                         type=str)
 

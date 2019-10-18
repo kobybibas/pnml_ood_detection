@@ -62,44 +62,44 @@ def run_experiment(params):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Applications of Deep PNML')
+    parser = argparse.ArgumentParser(description='Extract features from trained model')
     parser.add_argument('-model',
-                        help='Testset to evaluate',
+                        help='Model architecture name',
                         default='densenet',
                         choices=['densenet', 'resnet'],
                         type=str)
     parser.add_argument('-trainset',
-                        help='Trainset of the model',
+                        help='Trainset that used to train the model',
                         default='cifar10',
                         choices=['cifar10', 'cifar100'],
                         type=str)
     parser.add_argument('-output_dir',
-                        help='Trainset of the model',
+                        help='Output directory to which logs and products will be saved',
                         default=osp.join('..', 'output'),
                         type=str)
     parser.add_argument('-data_dir',
-                        help='Trainset of the model',
+                        help='The directory that contains the datasets',
                         default=osp.join('..', 'data'),
                         type=str)
     parser.add_argument('-model_dir',
-                        help='Trainset of the model',
+                        help='The directory that contains the trained model file',
                         default=osp.join('..', 'models'),
                         type=str)
     parser.add_argument('-logits_dir',
-                        help='Trainset of the model',
+                        help='Logits directory to which the model output will be saved',
                         default=osp.join('..', 'output', 'logits'),
                         type=str)
     parser.add_argument('-features_dir',
-                        help='Trainset of the model',
+                        help='Features directory to which the features will be saved',
                         default=osp.join('..', 'output', 'features'),
                         type=str)
     parser.add_argument('-batch_size',
                         default=128,
-                        help='Number of CPU workers',
+                        help='Batch size to use in the forward loop (default: 128)',
                         type=int)
     parser.add_argument('-num_workers',
                         default=4,
-                        help='Number of CPU workers',
+                        help='Number of CPU workers (default: 4)',
                         type=int)
 
     args = parser.parse_args()
