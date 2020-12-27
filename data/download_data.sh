@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 echo Imagenet
 wget https://www.dropbox.com/s/avgm2u562itwpkl/Imagenet.tar.gz
 tar -xvzf Imagenet.tar.gz

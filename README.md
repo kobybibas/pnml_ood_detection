@@ -5,104 +5,52 @@ Install requirements:
 while read requirement; conda install --yes $requirement;or pip install $requirement; end < requirements.txt
 ```
 
-Download datasets:
 ```bash
+# Downlaod OOD data
 cd data
 chmod 777 ./download_data.sh
 ./download_data.sh
+
+# Download pretrained models
+cd models
+chmod 777 ./download_models.sh
+./download_models.sh
 ```
 
-Steps:
-1. Train model.
-2. Extract features and logits.
-3. Compute In-Distribution/OutOfDistribution score.
-4. Calculate performance.
-
-## 1. Train Model
-There are pretrained model in here:
-TODO
-Simply download and extract to model directory.
 
 
-In order to train model yourself:
-```bash
-CUDA_VISIBLE_DEVICES=0 python main_train.py -model_name densenet -dataset_name cifar10 
-```
+## Extract features and logtis
 
-Or using tmuxp: https://github.com/tmux-python/tmuxp
-Train for all model architectures and trainsets:
-```bash
-cd bash_scripts
-tmuxp load train.yaml
-```
+Using the pretrained models, save the feautres of the last layer and the model outputs logits.
 
-## 2. Extract features and logtis:
-Using the pretrained model, save the feautres of the last layer and the model outputs logits.
-```
-cd src
-CUDA_VISIBLE_DEVICES=0 python main.py -model densenet -trainset cifar10
-```
-
-Or using tmuxp
-```bash
-cd bash_scripts
-tmuxp load extract_features.yaml
-```
-
-The tree path after executing for DenseNet and WideResNet:
-```
-.
-├── README.md
-├── bash_scripts
-│   ├── extract.yaml
-│   ├── score.yaml
-│   └── train.yaml
-├── data
-├── models
-├── notebooks
-├── output
-│   ├── features
-│   ├── logits
-├── requirements.txt
-└── src
-```
-
-## 3. Compute In-Dist/OutOfDist score
-Compute the score from which one can determine if the test sample is In or Out of Distribution.
+Baseline:
 
 ```bash
-cd bash_scripts
-CUDA_VISIBLE_DEVICES=0 python  main_score.py -model densenet -dataset cifar10 
+CUDA_VISIBLE_DEVICES=7 python main_extract.py model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=7 python main_extract.py model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=7 python main_extract.py model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=7 python main_extract.py model=resnet trainset=cifar100 ;
 ```
-Or using tmuxp
+
+ODIN:
+
 ```bash
-cd bash_scripts
-tmuxp load compute_score.yaml
+CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar100 ;
 ```
 
-The tree path after the score computation:
-```
-.
-├── README.md
-├── bash_scripts
-│   ├── extract.yaml
-│   ├── score.yaml
-│   └── train.yaml
-├── data
-├── models
-├── notebooks
-│   ├── benchmark.ipynb
-│   └── plot_functions.ipynb
-├── output
-│   ├── features
-│   ├── logits
-│   ├── score
-├── requirements.txt
-└── src
-```
 
-## 4. Calculate performance
-Using the notebook
-[./notebooks/ benchmark.ipynb](./notebooks/ benchmark.ipynb)
+
+
+## Optimize ODIN var
+
+```bash
+CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=resnet trainset=cifar100 ;
+```
 
 

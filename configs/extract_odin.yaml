@@ -1,0 +1,63 @@
+# Project structure
+data_dir: ../data       # The directory that contains the datasets
+model_dir: ../models    # The directory that contains the trained model file
+
+# Inference params
+model: densenet         # Model architecture name (densenet/resnet)
+trainset: cifar10       # Trainset that used to train the model (cifar10/cifar100/svhn)
+batch_size: 128         # Batch size to use in the forward loop
+num_workers: 4          # Number of CPU workers
+
+# Flow
+test_pretrained: false
+dev_run: false
+
+# Odin perturbation
+odin:
+  densenet:
+    cifar10:
+      "Gaussian": 0.00859375
+      "Imagenet": 0.0029296875
+      "Imagenet_resize": 0.0052734375
+      "LSUN": 0.0
+      "LSUN_resize": 0.0056396484375
+      "Uniform": 0.00830078125
+      "cifar100": 1.52587890625e-06
+      "iSUN": 0.0059570312500000005
+      "svhn": 0.015869140625
+    cifar100:
+      "Gaussian": 0.020068359375000004
+      "Imagenet": 0.00771484375
+      "Imagenet_resize": 0.0087890625
+      "LSUN": 0.0134765625
+      "LSUN_resize": 0.008056640625
+      "Uniform": 0.015478515625000001
+      "cifar10": 0.00010986328125000002
+      "iSUN": 0.0087890625
+      "svhn": 0.020312500000000004
+  resnet:
+    cifar10:
+      "Gaussian": 0.016455078125
+      "Imagenet": 0.0031005859375000003
+      "Imagenet_resize": 0.005590820312500001
+      "LSUN": 0.0
+      "LSUN_resize": 0.0052246093750000005
+      "Uniform": 0.014453125
+      "cifar100": 9.5367431640625e-08
+      "iSUN": 0.0059570312500000005
+      "svhn": 0.056933593750000004
+    cifar100:
+      "Gaussian": 0.016748046875000002
+      "Imagenet": 0.009277343750000002
+      "Imagenet_resize": 0.010498046875000002
+      "LSUN": 0.02431640625
+      "LSUN_resize": 0.0095703125
+      "Uniform": 0.0154296875
+      "cifar10": 0.0
+      "iSUN": 0.010009765625000002
+      "svhn": 0.04062500000000001
+
+
+hydra:
+  run:
+    dir: ../outputs/odin_${model}_${trainset}_${now:%Y%m%d_%H%M%S}

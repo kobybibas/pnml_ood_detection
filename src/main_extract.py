@@ -1,13 +1,16 @@
-import argparse
-import json
+import logging
 import os
 import os.path as osp
 
-from loguru import logger
+import hydra
+import torch
+from omegaconf import DictConfig
 
-from dataset_utilities import get_dataloaders
-from model_utilities import get_model, test_pretrained_model
-from pnml_utilities import extract_features, save_products, save_train_labels
+from dataset_utils import get_dataloaders
+from model_utils import get_model, test_pretrained_model, extract_features
+from save_product_utils import save_last_layer_weights, save_products, save_train_labels
+
+logger = logging.getLogger(__name__)
 
 """
 Example of running:
@@ -15,92 +18,88 @@ CUDA_VISIBLE_DEVICES=0 python main.py -model densenet -trainset cifar10 -num_wor
 """
 
 
-def run_experiment(params):
-    os.makedirs(params.data_dir, exist_ok=True)
-    os.makedirs(params.output_dir, exist_ok=True)
-    os.makedirs(params.logits_dir, exist_ok=True)
-    os.makedirs(params.features_dir, exist_ok=True)
+def extract_odin_features(model, loaders_dict: dict, model_name: str, trainset_name: str, out_dir: str, odin_dict: dict,
+                          is_dev_run: bool = False):
+    # Get ind testset
+    ind_loader = loaders_dict.pop(trainset_name)
+    ind_name = trainset_name
 
-    ################
-    # Create logger and save params to output folder
-    logger.add(osp.join(params.output_dir, 'extract_{}_{}.log'.format(params.model, params.trainset)))
-    logger.info(json.dumps(vars(params), indent=4, sort_keys=True))
+    # Extract features for all dataset: trainset, ind_testset and ood_testsets
+    for data_name, ood_loader in loaders_dict.items():
+        # Get ODIN parameters if available
+        odin_eps = odin_dict[model_name][trainset_name][data_name]
+        testset_out_dir = osp.join(out_dir, data_name)
+        os.makedirs(testset_out_dir)
 
-    ################
-    # Load datasets
-    logger.info('Load datasets: {}'.format(params.data_dir))
-    dataloaders_dict = get_dataloaders(params.trainset, params.data_dir, params.batch_size, params.num_workers)
-    logger.info('OOD datasets: {}'.format(dataloaders_dict['ood'].keys()))
+        # Extract features
+        logger.info('Feature extraction for {}. odin_eps={}'.format(data_name, odin_eps))
 
-    ################
+        # ind
+        features_dataset = extract_features(model, ind_loader, odin_eps, is_dev_run=is_dev_run)
+        save_products(features_dataset, testset_out_dir, model_name, trainset_name, ind_name)
+
+        # ood
+        features_dataset = extract_features(model, ood_loader, odin_eps, is_dev_run=is_dev_run)
+        save_products(features_dataset, testset_out_dir, model_name, trainset_name, data_name)
+        logger.info('')
+
+
+def extract_baseline_features(model, loaders_dict: dict, model_name, trainset_name: str, out_dir: str,
+                              is_dev_run: bool = False):
+    # Extract features for all dataset: trainset, ind_testset and ood_testsets
+    for data_name, loader in loaders_dict.items():
+        logger.info('Feature extraction for {}'.format(data_name))
+        features_dataset = extract_features(model, loader, odin_eps=0.0, is_dev_run=is_dev_run)
+        save_products(features_dataset, out_dir, model_name, trainset_name, data_name)
+        logger.info('')
+
+
+# @hydra.main(config_path="../configs", config_name="extract_odin.yaml")
+@hydra.main(config_path="../configs", config_name="extract_baseline")
+def run_experiment(cfg: DictConfig):
+    logger.info(cfg)
+    out_dir = os.getcwd()
+    os.chdir(hydra.utils.get_original_cwd())
+    logger.info('torch.cuda.is_available={}'.format(torch.cuda.is_available()))
+
     # Load pretrained model
-    logger.info('Get Model: {} {}'.format(params.model, params.trainset))
-    model = get_model(params.model_dir, params.model, params.trainset)
-    logger.info('Testing pretrained model')
-    test_pretrained_model(model, dataloaders_dict['trainset'], dataloaders_dict['testset'])
+    logger.info('Get Model: {} {}'.format(cfg.model, cfg.trainset))
+    model = get_model(cfg.model, cfg.trainset)
+    save_last_layer_weights(model, out_dir)
 
-    for ood_name, dataloader in dataloaders_dict['ood'].items():
-        logger.info('Feature extraction for {}'.format(ood_name))
-        features_dataset = extract_features(model, dataloader)
-        save_products(features_dataset,
-                      params.features_dir, params.logits_dir,
-                      params.model, params.trainset, ood_name, 'testset')
+    # Load datasets
+    logger.info('Load datasets: {}'.format(cfg.data_dir))
+    loaders_dict = get_dataloaders(cfg.model,
+                                   cfg.trainset, cfg.data_dir, cfg.batch_size,
+                                   cfg.num_workers if cfg.dev_run is False else 0)
+    assert 'trainset' in loaders_dict  # Contains the trainset loader
+    assert cfg.trainset in loaders_dict  # This is the in-distribution testset loader
 
-    # Save trainset
-    logger.info('Feature extraction for {}'.format(params.trainset + '_' + 'trainset'))
-    features_dataset = extract_features(model, dataloaders_dict['trainset'])
-    save_products(features_dataset,
-                  params.features_dir, params.logits_dir,
-                  params.model, params.trainset, params.trainset, 'trainset')
+    # Save labels
+    logger.info('Save labels for {}'.format(cfg.trainset))
+    save_train_labels(loaders_dict['trainset'].dataset, cfg.trainset, out_dir)
 
-    # Save train labels
-    logger.info('Save train labels for {}'.format(params.trainset))
-    save_train_labels(dataloaders_dict['trainset'].dataset, params.trainset, params.features_dir)
-    save_train_labels(dataloaders_dict['trainset'].dataset, params.trainset, params.logits_dir)
+    logger.info('Datasets: {}'.format(loaders_dict.keys()))
+    if cfg.test_pretrained is True:
+        logger.info('Testing pretrained model')
+        ind_testset = loaders_dict[cfg.trainset]
+        test_pretrained_model(model, loaders_dict['trainset'], ind_testset, is_dev_run=cfg.dev_run)
 
+    # Extract trainset features:
+    data_name = 'trainset'
+    loader = loaders_dict.pop(data_name)
+    logger.info('Feature extraction for {}'.format(data_name))
+    features_dataset = extract_features(model, loader, odin_eps=0.0, is_dev_run=cfg.dev_run)
+    save_products(features_dataset, out_dir, cfg.model, cfg.trainset, data_name)
+    logger.info('')
+
+    # Extract features
+    if not hasattr(cfg, 'odin'):
+        extract_baseline_features(model, loaders_dict, cfg.model, cfg.trainset, out_dir, is_dev_run=cfg.dev_run)
+    else:
+        extract_odin_features(model, loaders_dict, cfg.model, cfg.trainset, out_dir, cfg.odin, is_dev_run=cfg.dev_run)
     logger.info('Finished!')
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Extract features from trained model')
-    parser.add_argument('-model',
-                        help='Model architecture name',
-                        default='densenet',
-                        choices=['densenet', 'resnet'],
-                        type=str)
-    parser.add_argument('-trainset',
-                        help='Trainset that used to train the model',
-                        default='cifar10',
-                        choices=['cifar10', 'cifar100'],
-                        type=str)
-    parser.add_argument('-output_dir',
-                        help='Output directory to which logs and products will be saved',
-                        default=osp.join('..', 'output'),
-                        type=str)
-    parser.add_argument('-data_dir',
-                        help='The directory that contains the datasets',
-                        default=osp.join('..', 'data'),
-                        type=str)
-    parser.add_argument('-model_dir',
-                        help='The directory that contains the trained model file',
-                        default=osp.join('..', 'models'),
-                        type=str)
-    parser.add_argument('-logits_dir',
-                        help='Logits directory to which the model output will be saved',
-                        default=osp.join('..', 'output', 'logits'),
-                        type=str)
-    parser.add_argument('-features_dir',
-                        help='Features directory to which the features will be saved',
-                        default=osp.join('..', 'output', 'features'),
-                        type=str)
-    parser.add_argument('-batch_size',
-                        default=128,
-                        help='Batch size to use in the forward loop (default: 128)',
-                        type=int)
-    parser.add_argument('-num_workers',
-                        default=4,
-                        help='Number of CPU workers (default: 4)',
-                        type=int)
-
-    args = parser.parse_args()
-    run_experiment(args)
+    run_experiment()

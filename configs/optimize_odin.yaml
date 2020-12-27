@@ -1,0 +1,20 @@
+model: densenet                   # Model architecture name (densenet/resnet)
+trainset: cifar10                 # Trainset that used to train the model (cifar10/cifar100/svhn)
+data_dir: ../data                 # The directory that contains the datasets
+model_dir: ../models              # The directory that contains the trained model file
+batch_size: 128                   # Batch size to use in the forward loop
+num_workers: 4                    # Number of CPU workers
+dev_run: false
+
+
+eps_min: 0.0
+eps_max: 0.1
+eps_num: 5
+eps_levels: 10
+num_samples: 1000         # Number of samples to optimize on
+
+test_pretrained: false
+
+hydra:
+  run:
+    dir: ../outputs/optimize_odin_${model}_${trainset}_${now:%Y%m%d_%H%M%S}
