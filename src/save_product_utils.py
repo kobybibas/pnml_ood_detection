@@ -26,17 +26,14 @@ def save_train_labels(trainset, trainset_name: str, out_dir: str):
     np.save(file_name, targets)
 
 
-def save_products(features_dataset, out_dir: str, model_name: str, trainset_name: str, set_name: str):
+def save_products(features_dataset, out_dir: str, set_name: str):
     """
     Save dataset features and outputs logits.
     :param features_dataset:
     :param out_dir:
-    :param model_name:
-    :param trainset_name:
     :param set_name:
     :return:
     """
-    # prefix = '{}_{}_{}'.format(model_name, trainset_name, set_name)
     prefix = set_name
 
     # Save features

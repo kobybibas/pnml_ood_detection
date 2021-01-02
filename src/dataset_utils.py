@@ -155,10 +155,10 @@ class FeaturesDataset(datasets.VisionDataset):
     def __init__(self, features_list: list, labels_list: list, outputs_list: list, prob_list: list, *args, **kwargs):
         super().__init__('', *args, **kwargs)
 
-        self.data = torch.cat(features_list).cpu()
-        self.outputs = torch.cat(outputs_list).cpu()
-        self.targets = torch.cat(labels_list).cpu()
-        self.probs = torch.cat(prob_list).cpu()
+        self.data = torch.cat(features_list).cpu().numpy()
+        self.outputs = torch.cat(outputs_list).cpu().numpy()
+        self.targets = torch.cat(labels_list).cpu().numpy()
+        self.probs = torch.cat(prob_list).cpu().numpy()
 
     def __getitem__(self, index):
         """

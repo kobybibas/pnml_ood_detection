@@ -11,9 +11,11 @@ from tqdm import tqdm
 
 from dataset_utils import FeaturesDataset
 from model_arch_utils.densenet import DenseNet3
+from model_arch_utils.densenet_gram import DenseNet3Gram
 from model_arch_utils.resnet import ResNet34
+from model_arch_utils.resnet_gram import ResNet34Gram
 from model_arch_utils.wideresnet import WideResNet
-from odin_utils import odin_extract_features_from_loader
+from save_product_utils import save_products
 
 sys.path.append('./model_arch_utils')
 logger = logging.getLogger(__name__)
@@ -40,18 +42,21 @@ def add_feature_extractor_method(model: torch.nn.Module):
     model.get_features = types.MethodType(get_features, model)
 
 
-def get_model(model_name: str, trainset_name: str) -> torch.nn.Module:
+def get_model(model_name: str, trainset_name: str, is_gram: bool = False) -> torch.nn.Module:
+    resnet_class = ResNet34Gram if is_gram is True else ResNet34
+    densenet_class = DenseNet3Gram if is_gram is True else DenseNet3
+
     # Get list of pretrained models
     if model_name == 'densenet':
         # model = ptcv_get_model("densenet100_k12_bc_%s" % trainset_name, pretrained=True)
         if trainset_name == 'cifar10':
-            model = DenseNet3(100, 10)
+            model = densenet_class(100, 10)
             model.load('../models/densenet_cifar10.pth')
         elif trainset_name == 'cifar100':
-            model = DenseNet3(100, 100)
+            model = densenet_class(100, 100)
             model.load('../models/densenet_cifar100.pth')
         elif trainset_name == 'svhn':
-            model = DenseNet3(100, 10)
+            model = densenet_class(100, 10)
             model.load('../models/densenet_svhn.pth')
     elif model_name == 'wideresnet':
         if trainset_name == 'cifar10':
@@ -65,13 +70,13 @@ def get_model(model_name: str, trainset_name: str) -> torch.nn.Module:
     elif model_name == 'resnet':
         # model = ptcv_get_model("wrn28_10_%s" % trainset_name, pretrained=True)
         if trainset_name == 'cifar10':
-            model = ResNet34(num_c=10)
+            model = resnet_class(num_c=10)
             model.load('../models/resnet_cifar10.pth')
         elif trainset_name == 'cifar100':
-            model = ResNet34(num_c=100)
+            model = resnet_class(num_c=100)
             model.load('../models/resnet_cifar100.pth')
         elif trainset_name == 'svhn':
-            model = ResNet34(num_c=10)
+            model = resnet_class(num_c=10)
             model.load('../models/resnet_svhn.pth')
     else:
         raise ValueError(f'{model_name} is not supported')
@@ -111,7 +116,7 @@ def test_pretrained_model(model: nn.Module, trainloader: data.DataLoader, testlo
 
 
 def extract_features_from_loader(model: torch.nn.Module,
-                                 dataloader: data.DataLoader, is_dev_run: bool = False) -> (list, list, list, list):
+                                 dataloader: data.DataLoader, is_dev_run: bool = False) -> FeaturesDataset:
     features_list, labels_list, outputs_list, prob_list = [], [], [], []
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     model.to(device)
@@ -134,18 +139,17 @@ def extract_features_from_loader(model: torch.nn.Module,
 
             if is_dev_run is True:
                 break
-
-    return features_list, labels_list, outputs_list, prob_list
-
-
-def extract_features(model: torch.nn.Module, dataloader, odin_eps: float = 0.0, is_dev_run: bool = False):
-    if odin_eps == 0.0:
-        features, labels, outputs, probs = extract_features_from_loader(model, dataloader, is_dev_run=is_dev_run)
-    else:
-        features, labels, outputs, probs = odin_extract_features_from_loader(model, dataloader, odin_eps,
-                                                                             is_dev_run=is_dev_run)
-
-    features_dataset = FeaturesDataset(features, labels, outputs, probs,
+    features_dataset = FeaturesDataset(features_list, labels_list, outputs_list, prob_list,
                                        transform=transforms.Compose([transforms.Lambda(lambda x: x)]))
     torch.cuda.empty_cache()
+
     return features_dataset
+
+
+def extract_baseline_features(model, loaders_dict: dict, out_dir: str, is_dev_run: bool = False):
+    # Extract features for all dataset: trainset, ind_testset and ood_testsets
+    for data_name, loader in loaders_dict.items():
+        logger.info('Feature extraction for {}'.format(data_name))
+        features_dataset = extract_features_from_loader(model, loader, is_dev_run=is_dev_run)
+        save_products(features_dataset, out_dir, data_name)
+        logger.info('')

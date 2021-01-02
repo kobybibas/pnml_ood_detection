@@ -12,7 +12,7 @@ num_workers: 4          # Number of CPU workers
 test_pretrained: false
 dev_run: false
 
-# Odin perturbation
+# Odin perturbations
 odin:
   densenet:
     cifar10:
@@ -35,6 +35,16 @@ odin:
       "cifar10": 0.00010986328125000002
       "iSUN": 0.0087890625
       "svhn": 0.020312500000000004
+    svhn:
+      "Gaussian": 0.0083251953125
+      "Imagenet": 2.8610229492187504e-07
+      "Imagenet_resize": 0.0
+      "LSUN": 9.5367431640625e-08
+      "LSUN_resize": 2.44140625e-05
+      "Uniform": 0.0042724609375
+      "cifar10": 0.0
+      "cifar100": 0.0
+      "iSUN": 1.1444091796875002e-06
   resnet:
     cifar10:
       "Gaussian": 0.016455078125
@@ -56,6 +66,16 @@ odin:
       "cifar10": 0.0
       "iSUN": 0.010009765625000002
       "svhn": 0.04062500000000001
+    svhn:
+      "Gaussian": 0.0083251953125
+      "Imagenet": 2.8610229492187504e-07
+      "Imagenet_resize": 0.0
+      "LSUN": 9.5367431640625e-08
+      "LSUN_resize": 2.44140625e-05
+      "Uniform": 0.0042724609375
+      "cifar10": 0.0
+      "cifar100": 0.0
+      "iSUN": 1.1444091796875002e-06
 
 
 hydra:

@@ -26,19 +26,34 @@ Using the pretrained models, save the feautres of the last layer and the model o
 Baseline:
 
 ```bash
-CUDA_VISIBLE_DEVICES=7 python main_extract.py model=densenet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=7 python main_extract.py model=densenet trainset=cifar100 ;\
-CUDA_VISIBLE_DEVICES=7 python main_extract.py model=resnet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=7 python main_extract.py model=resnet trainset=cifar100 ;
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=densenet trainset=svhn ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=resnet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py model=resnet trainset=svhn ;
 ```
 
 ODIN:
 
 ```bash
-CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar100 ;\
-CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar100 ;
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=densenet trainset=svhn ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=resnet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_odin model=resnet trainset=svhn ;
+```
+
+Gram:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=densenet trainset=svhn ;
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=resnet trainset=cifar100 ;
+CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=resnet trainset=svhn ;
 ```
 
 
@@ -47,10 +62,11 @@ CUDA_VISIBLE_DEVICES=6 python main_extract.py --config-name=extract_odin model=r
 ## Optimize ODIN var
 
 ```bash
-CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=densenet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=densenet trainset=cifar100 ;\
-CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=resnet trainset=cifar10 ;\
-CUDA_VISIBLE_DEVICES=7 python optimize_odin.py model=resnet trainset=cifar100 ;
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar100 ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=svhn ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=svhn ;
 ```
 
 

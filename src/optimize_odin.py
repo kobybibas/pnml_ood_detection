@@ -32,15 +32,14 @@ def optimize_odin_fo_dataset(model, ind_loader, ood_loader,
 
         logger.info('eps level [{}/{}]: epsilon_list={}'.format(eps_level, eps_levels - 1, epsilon_list))
         for i, eps in enumerate(epsilon_list):
-            _, _, _, prob_ind = odin_extract_features_from_loader(model, ind_loader, eps,
-                                                                  num_samples=num_samples,
-                                                                  is_dev_run=is_dev_run)
-            _, _, _, prob_ood = odin_extract_features_from_loader(model, ood_loader, eps,
-                                                                  num_samples=num_samples,
-                                                                  is_dev_run=is_dev_run)
-
-            prob_ind = torch.cat(prob_ind).cpu().numpy()
-            prob_ood = torch.cat(prob_ood).cpu().numpy()
+            features_dataset = odin_extract_features_from_loader(model, ind_loader, eps,
+                                                                 num_samples=num_samples,
+                                                                 is_dev_run=is_dev_run)
+            prob_ind = features_dataset.probs
+            features_dataset = odin_extract_features_from_loader(model, ood_loader, eps,
+                                                                 num_samples=num_samples,
+                                                                 is_dev_run=is_dev_run)
+            prob_ood = features_dataset.probs
 
             max_prob_ind = prob_ind.max(axis=1)
             max_prob_ood = prob_ood.max(axis=1)
@@ -107,7 +106,6 @@ def optimize_odin(cfg: DictConfig):
 
         if cfg.dev_run:
             break
-
 
     with open(osp.join(out_dir, 'optimized_eps.json'), 'w') as f:
         json.dump(best_eps_dict, f, ensure_ascii=True, indent=4, sort_keys=True)

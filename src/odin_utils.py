@@ -1,10 +1,50 @@
+# from pytorchcv.model_provider import get_model as ptcv_get_model
 import logging
+import os
+import os.path as osp
 
 import torch
 from torch.utils import data
+from torchvision import transforms
 from tqdm import tqdm
 
+from dataset_utils import FeaturesDataset
+from save_product_utils import save_products
+
 logger = logging.getLogger(__name__)
+
+
+def extract_odin_features(model, loaders_dict: dict, model_name: str, trainset_name: str, out_dir: str, odin_dict: dict,
+                          is_dev_run: bool = False):
+    data_name = 'trainset'
+    test_loader = loaders_dict.pop(data_name)
+    logger.info('Feature extraction for {}'.format(data_name))
+    features_dataset = odin_extract_features_from_loader(model, test_loader, eps=0.0, is_dev_run=is_dev_run)
+    save_products(features_dataset, out_dir, data_name)
+    logger.info('')
+
+    # Get ind testset
+    ind_loader = loaders_dict.pop(trainset_name)
+    ind_name = trainset_name
+
+    # Extract features for all dataset: trainset, ind_testset and ood_testsets
+    for data_name, ood_loader in loaders_dict.items():
+        # Get ODIN parameters if available
+        odin_eps = odin_dict[model_name][trainset_name][data_name]
+        testset_out_dir = osp.join(out_dir, data_name)
+        os.makedirs(testset_out_dir)
+
+        # Extract features
+        logger.info('Feature extraction for {}. odin_eps={}'.format(data_name, odin_eps))
+
+        # ind
+        features_dataset = odin_extract_features_from_loader(model, ind_loader, odin_eps, is_dev_run=is_dev_run)
+        save_products(features_dataset, testset_out_dir, ind_name)
+
+        # ood
+        features_dataset = odin_extract_features_from_loader(model, ood_loader, odin_eps, is_dev_run=is_dev_run)
+        save_products(features_dataset, testset_out_dir, data_name)
+        logger.info('')
 
 
 def perturbate_input(model, images, magnitude: float, temper: float = 1000):
@@ -48,7 +88,7 @@ def perturbate_input(model, images, magnitude: float, temper: float = 1000):
 def odin_extract_features_from_loader(model: torch.nn.Module, dataloader: data.DataLoader,
                                       eps: float, temper: float = 1000,
                                       num_samples=None,
-                                      is_dev_run: bool = False) -> (list, list, list):
+                                      is_dev_run: bool = False) -> FeaturesDataset:
     features_list, labels_list, outputs_list, prob_list = [], [], [], []
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     model.to(device)
@@ -77,4 +117,7 @@ def odin_extract_features_from_loader(model: torch.nn.Module, dataloader: data.D
         if num_samples is not None and batch_n * len(images) > num_samples:
             break
 
-    return features_list, labels_list, outputs_list, prob_list
+    features_dataset = FeaturesDataset(features_list, labels_list, outputs_list, prob_list,
+                                       transform=transforms.Compose([transforms.Lambda(lambda x: x)]))
+    torch.cuda.empty_cache()
+    return features_dataset

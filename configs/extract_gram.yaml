@@ -1,0 +1,20 @@
+# Project structure
+data_dir: ../data       # The directory that contains the datasets
+model_dir: ../models    # The directory that contains the trained model file
+
+# Inference params
+model: densenet         # Model architecture name (densenet/resnet)
+trainset: cifar10       # Trainset that used to train the model (cifar10/cifar100/svhn)
+batch_size: 512         # Batch size to use in the forward loop
+num_workers: 4          # Number of CPU workers
+
+# Model
+is_gram: true
+
+# Flow
+test_pretrained: false
+dev_run: false
+
+hydra:
+  run:
+    dir: ../outputs/gram_${model}_${trainset}_${now:%Y%m%d_%H%M%S}
