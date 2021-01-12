@@ -1,6 +1,5 @@
 import logging
 import sys
-import types
 
 import torch
 # from pytorchcv.model_provider import get_model as ptcv_get_model
@@ -19,27 +18,6 @@ from save_product_utils import save_products
 
 sys.path.append('./model_arch_utils')
 logger = logging.getLogger(__name__)
-
-
-def add_feature_extractor_method(model: torch.nn.Module):
-    """
-    Add feature extractor method
-    :param model: Pytorch model
-    :return: In place: model with feature extraction method
-    """
-
-    def my_forward(self, x):
-        x = self.features(x)
-        x = x.view(x.size(0), -1)
-        self.features_out = x.clone()
-        x = self.output(x)
-        return x
-
-    def get_features(self):
-        return self.features_out
-
-    model.forward = types.MethodType(my_forward, model)
-    model.get_features = types.MethodType(get_features, model)
 
 
 def get_model(model_name: str, trainset_name: str, is_gram: bool = False) -> torch.nn.Module:
@@ -80,7 +58,6 @@ def get_model(model_name: str, trainset_name: str, is_gram: bool = False) -> tor
             model.load('../models/resnet_svhn.pth')
     else:
         raise ValueError(f'{model_name} is not supported')
-    # add_feature_extractor_method(model)
     model.eval()
     model = model.cuda() if torch.cuda.is_available() else model
     return model

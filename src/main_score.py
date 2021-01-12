@@ -15,16 +15,6 @@ from score_utils import calc_metrics_transformed as calc_metrics
 from score_utils import calc_regret_on_set, load_fc_layer, calc_probs, split_val_test_idxs
 from score_utils import load_features, transform_features, calc_projection_matrices
 
-ood_names_dict = {
-    "TinyImageNet (crop)": "Imagenet",
-    "TinyImageNet (resize)": "Imagenet_resize",
-    "LSUN (crop)": "LSUN",
-    "LSUN (resize)": "LSUN_resize",
-    "iSUN": "iSUN",
-    "Uniform": "Uniform",
-    "Gaussian": "Gaussian",
-}
-
 
 def load_ood_products(root: str, trainset_name: str) -> dict:
     feature_paths = glob(osp.join(root, f"*_features.npy"))
@@ -58,43 +48,6 @@ def load_ind_products(root: str, trainset_name: str):
     testset_ind_labels = np.load(osp.join(root, f"{trainset_name}_targets.npy"))
     ind_probs = np.load(osp.join(root, f"{trainset_name}_probs.npy"))
     return ind_features, testset_ind_labels, ind_probs
-
-
-def reorder_df_index(df_in: pd.DataFrame) -> pd.DataFrame:
-    df_new = df_in.reindex(["iSUN",
-                            "LSUN_resize",
-                            "Imagenet_resize",
-                            "svhn",
-                            "Imagenet",
-                            "LSUN",
-                            "Uniform",
-                            "Gaussian",
-                            "cifar10",
-                            "cifar100"]).reset_index()
-    return df_new
-
-
-def create_nested_df(method_dicts: dict, model_name_i: str, trainset_name_i: str) -> pd.DataFrame:
-    # Change nested dict: metric -> method -> values
-    metric_method_dict = {}
-    for method, metrics_dict in method_dicts.items():
-        for metric_name, metric_values in metrics_dict.items():
-            if not metric_name in metric_method_dict:
-                metric_method_dict[metric_name] = {}
-            metric_method_dict[metric_name][method] = metric_values
-
-    # Create nested df
-    dict_of_df = {k: pd.DataFrame(v) for k, v in metric_method_dict.items()}
-    ood_names_df = dict_of_df.pop('ood_dataset')
-    for metric_name, df_j in dict_of_df.items():
-        method = df_j.columns[0]
-        ood_names = ood_names_df[method]
-        df_j.index = ood_names
-        df_j.index.name = 'ood_dataset'
-    df_concat = pd.concat(dict_of_df, axis=1)
-    df_concat['model_name'] = f'{model_name_i}_{trainset_name_i}'
-    df_concat = reorder_df_index(df_concat)
-    return df_concat
 
 
 def calc_pnml_pref(ood_name, regrets_ind, regrets_ood):
@@ -146,7 +99,6 @@ def calc_performance_odin(root: str, trainset_name: str) -> (dict, dict, list):
     pnml_performance_list, odin_performance_list = [], []
     for ood_root in tqdm(list(ood_roots), desc='odin: ood'):
         # Load IND products
-        # ind_features, ind_labels, ind_probs = load_ind_products(ood_root, trainset_name)
         ind_prob_path = osp.join(ood_root, f"{trainset_name}_probs.npy")
 
         # Load OOD products
@@ -158,7 +110,7 @@ def calc_performance_odin(root: str, trainset_name: str) -> (dict, dict, list):
         odin_performance_list.append(performance_dict)
 
         # Compute pNML
-        ind_features, ind_labels, ind_probs = load_ind_products(ood_root + '_pNML', trainset_name)
+        ind_features, _, ind_probs = load_ind_products(ood_root + '_pNML', trainset_name)
 
         # ind
         ind_features = transform_features(ind_features)
@@ -322,15 +274,13 @@ def eval_single_model_performance(roots_i: str):
             series_metric.name = method_name
             metric_dfs[metric_name].append(series_metric)
 
-    df_dicts = {metric_name: pd.concat(metric_dfs[metric_name], axis=1) for metric_name, metric_list in
-                metric_dfs.items()}
-    for df in df_dicts.values():
+    metric_df_dict = {metric_name: pd.concat(metric_list, axis=1) for metric_name, metric_list in metric_dfs.items()}
+    for df in metric_df_dict.values():
         df['model_name'] = f'{model_name_i}_{trainset_name_i}'
         df.index.rename('ood_dataset', inplace=True)
         df.reset_index(inplace=True)
         df.set_index(['model_name', 'ood_dataset'], inplace=True)
-
-    return df_dicts
+    return metric_df_dict
 
 
 if __name__ == '__main__':
@@ -376,27 +326,27 @@ if __name__ == '__main__':
     num_workers = 3
 
     # Compute performance in parallel
-    finished, model_results = 0, []
+    finished, model_result_list = 0, []
     with futures.ProcessPoolExecutor(num_workers) as pool:
         t1 = time.time()
         for df_dicts in pool.map(eval_single_model_performance, roots):
-            model_results.append(df_dicts)
+            model_result_list.append(df_dicts)
             print('[{}/{}].in {:.2f} sec'.format(finished, len(roots) - 1, time.time() - t1))
             finished += 1
             t1 = time.time()
     print('Finish in {:.2f} sec'.format(time.time() - t0))
 
-    result = collections.defaultdict(list)
-
-    for d in model_results:
+    # Convert hierarchy: list of dict -> dict of list
+    model_result_dict = collections.defaultdict(list)
+    for d in model_result_list:
         for k, v in d.items():
-            result[k].append(v)
-
-    res = {metric_name: pd.concat(method_list, axis=0).round(2) for metric_name, method_list in result.items()}
+            model_result_dict[k].append(v)
+    df_dict = {metric_name: pd.concat(method_list, axis=0).round(2) for metric_name, method_list in
+               model_result_dict.items()}
 
     out_dir = '../outputs/visualizations'
     os.makedirs(out_dir, exist_ok=True)
-    for metric_name, res_i in res.items():
+    for metric_name, res_i in df_dict.items():
         print(metric_name)
         print(res_i)
         res_i.to_csv(osp.join(out_dir, f'result_df_{metric_name}.csv'))

@@ -1,5 +1,3 @@
-# from pytorchcv.model_provider import get_model as ptcv_get_model
-
 import logging
 import os.path as osp
 
@@ -15,27 +13,6 @@ from model_arch_utils.resnet_gram import ResNetGram
 from save_product_utils import save_products
 
 logger = logging.getLogger(__name__)
-
-
-def save_gram_products(gram_features, out_dir: str, set_name: str):
-    """
-    Save dataset features and outputs logits.
-    :param gram_features:
-    :param out_dir:
-    :param set_name:
-    :return:
-    """
-    prefix = set_name
-
-    arr = np.empty(len(gram_features), object)
-    arr[:] = gram_features
-
-    # Save features
-    for l in range(len(gram_features)):
-        logger.info('layer={}. shape={}'.format(l, gram_features[l].shape))
-    file_name = osp.join(out_dir, '{}_gram.npy'.format(prefix))
-    logger.info('Saving to {}'.format(file_name))
-    np.save(file_name, arr)
 
 
 def extract_gram_features(model, loaders_dict: dict, out_dir: str, is_dev_run: bool = False):

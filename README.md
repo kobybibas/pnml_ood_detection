@@ -1,6 +1,6 @@
 # OOD Detection
 
-Install requirements: 
+Install requirements:
 ```bash
 while read requirement; conda install --yes $requirement;or pip install $requirement; end < requirements.txt
 ```
@@ -56,10 +56,17 @@ CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=r
 CUDA_VISIBLE_DEVICES=0 python main_extract.py --config-name=extract_gram model=resnet trainset=svhn ;
 ```
 
+Run comparison: in main_score.py fill the output folder of the previous scripts. Then run the following:
+
+```bash
+python main_score.py
+```
 
 
 
 ## Optimize ODIN var
+
+Script to optimize odin pertubation and temeprature parameters.
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar10 ;\
@@ -79,11 +86,9 @@ CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar100 is
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=svhn is_with_pnml=true ;
 ```
 
-
-To reproduce results, use tmuxp (https://github.com/tmux-python/tmuxp). 
-The following experiment can be executed:
+Reprudcing result using tmuxp (https://github.com/tmux-python/tmuxp):
 
 ```bsh
 cd configs
-tmuxp load train_celeba.yaml # Train comapred methods
+tmuxp load tmuxp_main_optimize_odin.yaml
 ```
