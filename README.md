@@ -66,7 +66,24 @@ CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar10 ;
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar100 ;\
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=svhn ;\
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar10 ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar100 ;\
 CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=svhn ;
 ```
 
+```bash
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar10 is_with_pnml=true ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=cifar100 is_with_pnml=true ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=densenet trainset=svhn is_with_pnml=true ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar10 is_with_pnml=true ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=cifar100 is_with_pnml=true ;\
+CUDA_VISIBLE_DEVICES=0 python optimize_odin.py model=resnet trainset=svhn is_with_pnml=true ;
+```
 
+
+To reproduce results, use tmuxp (https://github.com/tmux-python/tmuxp). 
+The following experiment can be executed:
+
+```bsh
+cd configs
+tmuxp load train_celeba.yaml # Train comapred methods
+```

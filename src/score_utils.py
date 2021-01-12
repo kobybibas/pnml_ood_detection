@@ -33,8 +33,7 @@ def calc_projection_matrices(dataset: np.ndarray) -> np.ndarray:
 
     p_parallel = npl.pinv(p)
 
-    rank = min(n, m)
-    p_bot = np.eye(rank) - p_parallel @ p
+    p_bot = np.eye(m) - p_parallel @ p
     return p_parallel, p_bot
 
 

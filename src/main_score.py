@@ -1,6 +1,8 @@
+import collections
 import os
 import os.path as osp
 import time
+from concurrent import futures
 from glob import glob
 
 import numpy as np
@@ -58,21 +60,21 @@ def load_ind_products(root: str, trainset_name: str):
     return ind_features, testset_ind_labels, ind_probs
 
 
-def reorder_df_index(df):
-    df_new = df.reindex(["iSUN",
-                         "LSUN_resize",
-                         "Imagenet_resize",
-                         "svhn",
-                         "Imagenet",
-                         "LSUN",
-                         "Uniform",
-                         "Gaussian",
-                         "cifar10",
-                         "cifar100"]).reset_index()
+def reorder_df_index(df_in: pd.DataFrame) -> pd.DataFrame:
+    df_new = df_in.reindex(["iSUN",
+                            "LSUN_resize",
+                            "Imagenet_resize",
+                            "svhn",
+                            "Imagenet",
+                            "LSUN",
+                            "Uniform",
+                            "Gaussian",
+                            "cifar10",
+                            "cifar100"]).reset_index()
     return df_new
 
 
-def create_nested_df(method_dicts: dict) -> pd.DataFrame:
+def create_nested_df(method_dicts: dict, model_name_i: str, trainset_name_i: str) -> pd.DataFrame:
     # Change nested dict: metric -> method -> values
     metric_method_dict = {}
     for method, metrics_dict in method_dicts.items():
@@ -138,11 +140,13 @@ def calc_performance_odin(root: str, trainset_name: str) -> (dict, dict, list):
 
     ood_roots = glob(osp.join(root, '*'))
     ood_roots = filter(os.path.isdir, ood_roots)
+    ood_roots = filter(os.path.isdir, ood_roots)
+    ood_roots = [path for path in ood_roots if not path.endswith('pNML')]
 
     pnml_performance_list, odin_performance_list = [], []
     for ood_root in tqdm(list(ood_roots), desc='odin: ood'):
         # Load IND products
-        ind_features, ind_labels, ind_probs = load_ind_products(ood_root, trainset_name)
+        # ind_features, ind_labels, ind_probs = load_ind_products(ood_root, trainset_name)
         ind_prob_path = osp.join(ood_root, f"{trainset_name}_probs.npy")
 
         # Load OOD products
@@ -154,6 +158,7 @@ def calc_performance_odin(root: str, trainset_name: str) -> (dict, dict, list):
         odin_performance_list.append(performance_dict)
 
         # Compute pNML
+        ind_features, ind_labels, ind_probs = load_ind_products(ood_root + '_pNML', trainset_name)
 
         # ind
         ind_features = transform_features(ind_features)
@@ -195,8 +200,8 @@ def calc_performance_gram(root: str, trainset_name: str) -> (dict, dict):
     probs_ind = calc_probs(ind_features, w)
 
     # Load OOD products
-    ood_dict = load_ood_products(root, trainset_name)
-    for ood_name, ood_dict in tqdm(ood_dict.items(), desc='gram: ood'):
+    ood_dicts = load_ood_products(root, trainset_name)
+    for ood_name, ood_dict in tqdm(ood_dicts.items(), desc='gram: ood'):
 
         # Load ood products
         ood_features = load_features(ood_dict['feature_path'])
@@ -256,13 +261,13 @@ def calc_performance_baseline(root: str, trainset_name: str) -> (dict, dict):
     w = load_fc_layer(root)
 
     # Load IND products
-    ind_features, ind_labels, ind_probs = load_ind_products(root, trainset_name)
+    features_ind, ind_labels, probs_ind = load_ind_products(root, trainset_name)
     ind_prob_path = osp.join(root, f"{trainset_name}_probs.npy")
 
     # Score pNML
-    ind_features = transform_features(ind_features)
-    ind_probs = calc_probs(ind_features, w)
-    regrets_ind, pnml_prediction = calc_regret_on_set(ind_features, ind_probs, p_parallel, p_bot)
+    features_ind = transform_features(features_ind)
+    probs_ind = calc_probs(features_ind, w)
+    regrets_ind, pnml_prediction = calc_regret_on_set(features_ind, probs_ind, p_parallel, p_bot)
 
     # Load OOD products
     ood_dict = load_ood_products(root, trainset_name)
@@ -273,12 +278,12 @@ def calc_performance_baseline(root: str, trainset_name: str) -> (dict, dict):
         max_prob_performance_list.append(performance_dict)
 
         # Compute pNML
-        ood_features = load_features(ood_dict['feature_path'])
-        ood_features = transform_features(ood_features)
-        ood_probs = calc_probs(ood_features, w)
+        features_ood = load_features(ood_dict['feature_path'])
+        features_ood = transform_features(features_ood)
+        probs_ood = calc_probs(features_ood, w)
 
         # Calc metric pnml
-        regrets_ood, _ = calc_regret_on_set(ood_features, ood_probs, p_parallel, p_bot)
+        regrets_ood, _ = calc_regret_on_set(features_ood, probs_ood, p_parallel, p_bot)
         performance_dict = calc_pnml_pref(ood_name, regrets_ind, regrets_ood)
         pnml_performance_list.append(performance_dict)
 
@@ -287,73 +292,112 @@ def calc_performance_baseline(root: str, trainset_name: str) -> (dict, dict):
     return pnml_dict, max_prob_dict
 
 
+def eval_single_model_performance(roots_i: str):
+    method_dicts_i = {}
+    method_i, model_name_i, trainset_name_i = '', '', ''
+    for root_i in roots_i:
+        method_i, model_name_i, trainset_name_i = osp.basename(root_i).split('_')[0:3]
+        if method_i == 'baseline':
+            pnml_df, max_prob_df = calc_performance_baseline(root_i, trainset_name_i)
+        elif method_i == 'odin':
+            pnml_df, max_prob_df = calc_performance_odin(root_i, trainset_name_i)
+        elif method_i == 'gram':
+            pnml_df, max_prob_df = calc_performance_gram(root_i, trainset_name_i)
+        else:
+            raise ValueError(f'{method_i} is not supported')
+
+        method_dicts_i[method_i] = max_prob_df
+        method_dicts_i[f'{method_i}+pNML'] = pnml_df
+
+    metric_names = list(next(iter(method_dicts_i.items()))[1].keys())
+    metric_names.remove('ood_dataset')
+
+    metric_dfs = {}
+    for metric_name in metric_names:
+        metric_dfs[metric_name] = []
+        for method_name, method_dict in method_dicts_i.items():
+            df = pd.DataFrame(method_dict)
+            df = df.set_index(['ood_dataset'])
+            series_metric = df[metric_name]
+            series_metric.name = method_name
+            metric_dfs[metric_name].append(series_metric)
+
+    df_dicts = {metric_name: pd.concat(metric_dfs[metric_name], axis=1) for metric_name, metric_list in
+                metric_dfs.items()}
+    for df in df_dicts.values():
+        df['model_name'] = f'{model_name_i}_{trainset_name_i}'
+        df.index.rename('ood_dataset', inplace=True)
+        df.reset_index(inplace=True)
+        df.set_index(['model_name', 'ood_dataset'], inplace=True)
+
+    return df_dicts
+
+
 if __name__ == '__main__':
+    t0 = time.time()
     desired_width = 320
     pd.set_option('display.width', desired_width)
     pd.set_option('display.max_columns', 10)
+    pd.options.display.float_format = '{:,.2f}'.format
 
     roots = [
         # Resnet CIFAR10
         [osp.join('..', 'outputs', 'baseline_resnet_cifar10_20201225_082002'),
-         osp.join('..', 'outputs', 'odin_resnet_cifar10_20201227_103641'),
+         osp.join('..', 'outputs', 'odin_resnet_cifar10_20210109_170107'),
          osp.join('..', 'outputs', 'gram_resnet_cifar10_20210101_194316'),
          ],
         # Resnet CIFAR100
         [osp.join('..', 'outputs', 'baseline_resnet_cifar100_20201225_082335'),
-         osp.join('..', 'outputs', 'odin_resnet_cifar100_20201227_105829'),
+         osp.join('..', 'outputs', 'odin_resnet_cifar100_20210109_170112'),
          osp.join('..', 'outputs', 'gram_resnet_cifar100_20210101_194313'),
+         ],
+        # Resnet SVHN
+        [osp.join('..', 'outputs', 'baseline_resnet_svhn_20210102_115031'),
+         osp.join('..', 'outputs', 'odin_resnet_svhn_20210109_170117'),
+         osp.join('..', 'outputs', 'gram_resnet_svhn_20210102_115233')
          ],
         # Densenet CIFAR10
         [osp.join('..', 'outputs', 'baseline_densenet_cifar10_20201225_080842'),
-         osp.join('..', 'outputs', 'odin_densenet_cifar10_20201227_095311'),
+         osp.join('..', 'outputs', 'odin_densenet_cifar10_20210109_170052'),
          osp.join('..', 'outputs', 'gram_densenet_cifar10_20210102_101211'),
          ],
         # Densenet CIFAR100
         [osp.join('..', 'outputs', 'baseline_densenet_cifar100_20201225_081421'),
-         osp.join('..', 'outputs', 'odin_densenet_cifar100_20201227_101407'),
+         osp.join('..', 'outputs', 'odin_densenet_cifar100_20210111_125213'),
          osp.join('..', 'outputs', 'gram_densenet_cifar100_20210102_101209')
          ],
         # Densenet SVHN
         [osp.join('..', 'outputs', 'baseline_densenet_svhn_20210102_114713'),
-         osp.join('..', 'outputs', 'odin_densenet_svhn_20210102_152929'),
+         osp.join('..', 'outputs', 'odin_densenet_svhn_20210109_170102'),
          osp.join('..', 'outputs', 'gram_densenet_svhn_20210102_115127')
-         ],
-        # Resnet SVHN
-        [osp.join('..', 'outputs', 'baseline_resnet_svhn_20210102_115031'),
-         osp.join('..', 'outputs', 'odin_resnet_svhn_20210102_152931'),
-         osp.join('..', 'outputs', 'gram_resnet_svhn_20210102_115233')
          ]
     ]
 
-    t0 = time.time()
-    model_results = []
-    for i, roots_i in enumerate(roots):
+    num_workers = 3
 
-        method_dicts_i = {}
-        method_i, model_name_i, trainset_name_i = '', '', ''
-        for root_i in roots_i:
-            method_i, model_name_i, trainset_name_i = osp.basename(root_i).split('_')[0:3]
-            if method_i == 'baseline':
-                pnml_df, max_prob_df = calc_performance_baseline(root_i, trainset_name_i)
-            elif method_i == 'odin':
-                pnml_df, max_prob_df = calc_performance_odin(root_i, trainset_name_i)
-            elif method_i == 'gram':
-                pnml_df, max_prob_df = calc_performance_gram(root_i, trainset_name_i)
-            else:
-                raise ValueError(f'{method_i} is not supported')
-
-            method_dicts_i[method_i] = max_prob_df
-            method_dicts_i[f'{method_i}+pNML'] = pnml_df
-
-        # create nested df: metric -> method -> values
-        df = create_nested_df(method_dicts_i)
-        df['model_name'] = f'{model_name_i}_{trainset_name_i}'
-        model_results.append(df)
-
-        print(f'[{i}/{len(roots)-1}]')
-
+    # Compute performance in parallel
+    finished, model_results = 0, []
+    with futures.ProcessPoolExecutor(num_workers) as pool:
+        t1 = time.time()
+        for df_dicts in pool.map(eval_single_model_performance, roots):
+            model_results.append(df_dicts)
+            print('[{}/{}].in {:.2f} sec'.format(finished, len(roots) - 1, time.time() - t1))
+            finished += 1
+            t1 = time.time()
     print('Finish in {:.2f} sec'.format(time.time() - t0))
-    result_df = pd.concat(model_results, axis=0)
-    result_df = result_df.set_index(["model_name", "ood_dataset"], inplace=False).round(1).dropna()
-    print(result_df)
-    result_df.to_csv('../outputs/results.csv')
+
+    result = collections.defaultdict(list)
+
+    for d in model_results:
+        for k, v in d.items():
+            result[k].append(v)
+
+    res = {metric_name: pd.concat(method_list, axis=0).round(2) for metric_name, method_list in result.items()}
+
+    out_dir = '../outputs/visualizations'
+    os.makedirs(out_dir, exist_ok=True)
+    for metric_name, res_i in res.items():
+        print(metric_name)
+        print(res_i)
+        res_i.to_csv(osp.join(out_dir, f'result_df_{metric_name}.csv'))
+        res_i.to_pickle(osp.join(out_dir, f'result_df_{metric_name}.pkl'))

@@ -47,7 +47,9 @@ def run_experiment(cfg: DictConfig):
 
     # Extract features
     if hasattr(cfg, 'odin'):
-        extract_odin_features(model, loaders_dict, cfg.model, cfg.trainset, out_dir, cfg.odin, is_dev_run=cfg.dev_run)
+        extract_odin_features(model, loaders_dict, cfg.model, cfg.trainset, out_dir, cfg.odin,cfg.odin_pnml,
+                              cfg.num_skip_samples,
+                              is_dev_run=cfg.dev_run)
     elif hasattr(cfg, 'is_gram') and cfg.is_gram is True:
         extract_gram_features(model, loaders_dict, out_dir, is_dev_run=cfg.dev_run)
     else:

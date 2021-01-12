@@ -123,7 +123,7 @@ def extract_features_from_loader(model: torch.nn.Module,
     model.eval()
 
     with torch.no_grad():
-        for images, labels in tqdm(dataloader):
+        for batch_num, (images, labels) in enumerate(tqdm(dataloader)):
             # Forward pass
             images = images.to(device)
             labels = labels.to(device)
@@ -137,7 +137,7 @@ def extract_features_from_loader(model: torch.nn.Module,
             outputs_list.append(outputs.cpu().detach())
             prob_list.append(probs.cpu().detach())
 
-            if is_dev_run is True:
+            if is_dev_run is True and batch_num >= 1:
                 break
     features_dataset = FeaturesDataset(features_list, labels_list, outputs_list, prob_list,
                                        transform=transforms.Compose([transforms.Lambda(lambda x: x)]))

@@ -23,13 +23,6 @@ testsets_names = [
 ]
 
 
-# FROM PTCV
-# transform_test = transforms.Compose([transforms.CenterCrop(32),
-#                                      transforms.ToTensor(),
-#                                      transforms.Normalize(mean=(0.4914, 0.4822, 0.4465),
-#                                                           std=(0.2023, 0.1994, 0.2010))])
-
-
 class ImageFolderOOD(datasets.VisionDataset):
     def __init__(self, root, *args, **kwargs):
         super().__init__(root, *args, **kwargs)

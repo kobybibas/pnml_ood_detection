@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import os
@@ -7,11 +8,12 @@ import hydra
 import numpy as np
 import torch
 from omegaconf import DictConfig
-from ood_metrics import calc_metrics
 
 from dataset_utils import get_dataloaders
-from model_utils import get_model, test_pretrained_model
+from model_utils import get_model, test_pretrained_model, extract_features_from_loader
 from odin_utils import odin_extract_features_from_loader
+from score_utils import calc_metrics_transformed as calc_metrics
+from score_utils import transform_features, calc_regret_on_set, calc_projection_matrices, add_bias_term
 
 logger = logging.getLogger(__name__)
 
@@ -21,47 +23,59 @@ CUDA_VISIBLE_DEVICES=0 python optimize_odin.py -model densenet -trainset cifar10
 """
 
 
-def optimize_odin_fo_dataset(model, ind_loader, ood_loader,
-                             num_samples,
-                             eps_min, eps_max, eps_num, eps_levels,
+def optimize_odin_to_dataset(model, ind_loader, ood_loader, trainloader,
+                             num_samples: int,
+                             epsilons: list, temperatures: list, model_name: str,
+                             is_with_pnml: bool,
                              is_dev_run: bool = False):
-    best_auroc, best_eps = 0.0, 0.0
-    for eps_level in range(eps_levels):
-        epsilon_list = np.linspace(eps_min, eps_max, eps_num)
-        best_i = np.argmin(np.abs(best_eps - epsilon_list))
+    p_parallel, p_bot = 0, 0
+    if is_with_pnml is True:
+        logger.info('extract_features_from_loader: trainset')
+        features_dataset = extract_features_from_loader(model, trainloader, is_dev_run=is_dev_run)
+        trainset_features = features_dataset.data
+        trainset_features = transform_features(add_bias_term(trainset_features))
+        p_parallel, p_bot = calc_projection_matrices(trainset_features)
 
-        logger.info('eps level [{}/{}]: epsilon_list={}'.format(eps_level, eps_levels - 1, epsilon_list))
-        for i, eps in enumerate(epsilon_list):
-            features_dataset = odin_extract_features_from_loader(model, ind_loader, eps,
-                                                                 num_samples=num_samples,
-                                                                 is_dev_run=is_dev_run)
-            prob_ind = features_dataset.probs
-            features_dataset = odin_extract_features_from_loader(model, ood_loader, eps,
-                                                                 num_samples=num_samples,
-                                                                 is_dev_run=is_dev_run)
-            prob_ood = features_dataset.probs
+    best_tnr, best_eps, best_temperature = 0.0, 0.0, 1.0
+    for i, (temperature, eps) in enumerate(itertools.product(temperatures, epsilons)):
+        features_dataset = odin_extract_features_from_loader(model, ind_loader, eps, temperature, model_name,
+                                                             num_samples=num_samples, is_dev_run=is_dev_run)
+        probs_ind = features_dataset.probs
+        features_ind = features_dataset.data
+        features_dataset = odin_extract_features_from_loader(model, ood_loader, eps, temperature, model_name,
+                                                             num_samples=num_samples, is_dev_run=is_dev_run)
+        probs_ood = features_dataset.probs
+        features_ood = features_dataset.data
 
-            max_prob_ind = prob_ind.max(axis=1)
-            max_prob_ood = prob_ood.max(axis=1)
+        if is_with_pnml is False:
+            max_prob_ind = probs_ind.max(axis=1)
+            max_prob_ood = probs_ood.max(axis=1)
 
             labels = [1] * len(max_prob_ind) + [0] * len(max_prob_ood)
             scores = np.append(max_prob_ind, max_prob_ood)
             performance_dict = calc_metrics(scores, labels)
-            auroc = performance_dict['auroc']
-            logger.info('[eps auroc]=[{} {:.3f}]'.format(eps, auroc))
-            if auroc > best_auroc:
-                logger.info('    New best auroc.')
-                best_eps = eps
-                best_auroc = auroc
-                best_i = i
+            tnr = performance_dict['TNR at TPR 95%']
+        else:
+            features_ind = transform_features(add_bias_term(features_ind))
+            regrets_ind, _ = calc_regret_on_set(features_ind, probs_ind, p_parallel, p_bot)
+            features_ood = transform_features(add_bias_term(features_ood))
+            regrets_ood, _ = calc_regret_on_set(features_ood, probs_ood, p_parallel, p_bot)
 
-        if best_i == 0 or best_i == len(epsilon_list) - 1:
-            logger.warning('Warning. best_i is at the edge: {}'.format(best_i))
-        eps_min, eps_max = epsilon_list[max(0, best_i - 1)], epsilon_list[min(len(epsilon_list) - 1, best_i + 1)]
+            labels = [1] * len(regrets_ind) + [0] * len(regrets_ood)
+            scores = -np.append(regrets_ind, regrets_ood)
+            performance_dict = calc_metrics(scores, labels)
+            tnr = performance_dict['TNR at TPR 95%']
+
+        logger.info('[eps temperature tnr]=[{} {} {:.3f}]'.format(eps, temperature, tnr))
+        if tnr > best_tnr:
+            logger.info('    New best tnr.')
+            best_eps = eps
+            best_temperature = temperature
+            best_tnr = tnr
 
         if is_dev_run:
             break
-    return best_eps, best_auroc
+    return best_eps, best_temperature, best_tnr
 
 
 @hydra.main(config_path="../configs", config_name="optimize_odin")
@@ -90,24 +104,26 @@ def optimize_odin(cfg: DictConfig):
         test_pretrained_model(model, loaders_dict['trainset'], ind_testset, is_dev_run=cfg.dev_run)
 
     # Remove trainset
-    loaders_dict.pop('trainset')
+    trainloader = loaders_dict.pop('trainset')
     ind_loader = loaders_dict.pop(cfg.trainset)
 
     # Optimize odin for each dataset
     best_eps_dict = {}
-    for data_name, ood_loader in loaders_dict.items():
-        logger.info('Optimize odin for {}'.format(data_name))
-        epsilon, auroc = optimize_odin_fo_dataset(model, ind_loader, ood_loader,
-                                                  cfg.num_samples,
-                                                  cfg.eps_min, cfg.eps_max, cfg.eps_num, cfg.eps_levels,
-                                                  is_dev_run=cfg.dev_run)
-        logger.info('{}: best [epsilon auroc]=[{} {}]'.format(data_name, epsilon, auroc))
-        best_eps_dict[data_name] = epsilon
-
+    for i, (data_name, ood_loader) in enumerate(loaders_dict.items()):
+        epsilon, temperature, tnr = optimize_odin_to_dataset(model, ind_loader, ood_loader, trainloader,
+                                                             cfg.num_samples,
+                                                             cfg.epsilons, cfg.temperatures, cfg.model,
+                                                             cfg.is_with_pnml,
+                                                             is_dev_run=cfg.dev_run)
+        logger.info('[{}/{}] {}: best [epsilon temperature tnr]=[{} {} {}]'.format(i, len(loaders_dict.keys()) - 1,
+                                                                                   data_name,
+                                                                                   epsilon, temperature, tnr))
+        best_eps_dict[data_name] = {'epsilon': epsilon,
+                                    'temperature': temperature}
         if cfg.dev_run:
             break
 
-    with open(osp.join(out_dir, 'optimized_eps.json'), 'w') as f:
+    with open(osp.join(out_dir, 'optimized_odin_params.json'), 'w') as f:
         json.dump(best_eps_dict, f, ensure_ascii=True, indent=4, sort_keys=True)
 
     logger.info('Finished!')
