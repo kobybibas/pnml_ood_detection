@@ -107,7 +107,7 @@ def optimize_odin(cfg: DictConfig):
     trainloader = loaders_dict.pop('trainset')
     ind_loader = loaders_dict.pop(cfg.trainset)
 
-    # Optimize odin for each dataset
+    # Optimize odin_pnml for each dataset
     best_eps_dict = {}
     for i, (data_name, ood_loader) in enumerate(loaders_dict.items()):
         epsilon, temperature, tnr = optimize_odin_to_dataset(model, ind_loader, ood_loader, trainloader,

@@ -1,9 +1,11 @@
 import logging
 import sys
+import warnings
 
 import torch
 # from pytorchcv.model_provider import get_model as ptcv_get_model
 from torch import nn
+from torch.serialization import SourceChangeWarning
 from torch.utils import data
 from torchvision import transforms
 from tqdm import tqdm
@@ -13,53 +15,53 @@ from model_arch_utils.densenet import DenseNet3
 from model_arch_utils.densenet_gram import DenseNet3Gram
 from model_arch_utils.resnet import ResNet34
 from model_arch_utils.resnet_gram import ResNet34Gram
-from model_arch_utils.wideresnet import WideResNet
 from save_product_utils import save_products
 
 sys.path.append('./model_arch_utils')
+
+warnings.filterwarnings("ignore", category=SourceChangeWarning)
 logger = logging.getLogger(__name__)
 
 
-def get_model(model_name: str, trainset_name: str, is_gram: bool = False) -> torch.nn.Module:
-    resnet_class = ResNet34Gram if is_gram is True else ResNet34
-    densenet_class = DenseNet3Gram if is_gram is True else DenseNet3
-
-    # Get list of pretrained models
+def get_model(model_name: str, trainset_name: str) -> torch.nn.Module:
     if model_name == 'densenet':
-        # model = ptcv_get_model("densenet100_k12_bc_%s" % trainset_name, pretrained=True)
-        if trainset_name == 'cifar10':
-            model = densenet_class(100, 10)
-            model.load('../models/densenet_cifar10.pth')
+        if trainset_name in ['cifar10', 'svhn']:
+            model = DenseNet3(100, 10)
         elif trainset_name == 'cifar100':
-            model = densenet_class(100, 100)
-            model.load('../models/densenet_cifar100.pth')
-        elif trainset_name == 'svhn':
-            model = densenet_class(100, 10)
-            model.load('../models/densenet_svhn.pth')
-    elif model_name == 'wideresnet':
-        if trainset_name == 'cifar10':
-            model = WideResNet(100, 10)
-            model.load('../models/wideresnet10.pth')
-        elif trainset_name == 'cifar100':
-            model = WideResNet(100, 100)
-            model.load('../models/wideresnet100.pth')
+            model = DenseNet3(100, 100)
         else:
-            raise ValueError(f'{trainset_name} is not supported for {model_name}')
+            raise ValueError(f'trainset_name={trainset_name} is not supported')
     elif model_name == 'resnet':
-        # model = ptcv_get_model("wrn28_10_%s" % trainset_name, pretrained=True)
-        if trainset_name == 'cifar10':
-            model = resnet_class(num_c=10)
-            model.load('../models/resnet_cifar10.pth')
+        if trainset_name in ['cifar10', 'svhn']:
+            model = ResNet34(num_c=10)
         elif trainset_name == 'cifar100':
-            model = resnet_class(num_c=100)
-            model.load('../models/resnet_cifar100.pth')
-        elif trainset_name == 'svhn':
-            model = resnet_class(num_c=10)
-            model.load('../models/resnet_svhn.pth')
+            model = ResNet34(num_c=100)
+        else:
+            raise ValueError(f'trainset_name={trainset_name} is not supported')
     else:
-        raise ValueError(f'{model_name} is not supported')
-    model.eval()
-    model = model.cuda() if torch.cuda.is_available() else model
+        raise ValueError(f'model_name={model_name} is not supported')
+    model.load(f'../models/{model_name}_{trainset_name}.pth')
+    return model
+
+
+def get_gram_model(model_name: str, trainset_name: str) -> torch.nn.Module:
+    if model_name == 'densenet':
+        if trainset_name in ['cifar10', 'svhn']:
+            model = DenseNet3Gram(100, 10)
+        elif trainset_name == 'cifar100':
+            model = DenseNet3Gram(100, 100)
+        else:
+            raise ValueError(f'trainset_name={trainset_name} is not supported')
+    elif model_name == 'resnet':
+        if trainset_name in ['cifar10', 'svhn']:
+            model = ResNet34Gram(num_c=10)
+        elif trainset_name == 'cifar100':
+            model = ResNet34Gram(num_c=100)
+        else:
+            raise ValueError(f'trainset_name={trainset_name} is not supported')
+    else:
+        raise ValueError(f'model_name={model_name} is not supported')
+    model.load(f'../models/{model_name}_{trainset_name}.pth')
     return model
 
 

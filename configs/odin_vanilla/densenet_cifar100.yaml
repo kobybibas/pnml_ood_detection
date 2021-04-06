@@ -1,0 +1,27 @@
+Gaussian:
+    epsilon: 0.0
+    temperature: 1.0
+Imagenet:
+    epsilon: 0.0024
+    temperature: 10
+Imagenet_resize:
+    epsilon: 0.0024
+    temperature: 10
+LSUN:
+    epsilon: 0.0024
+    temperature: 10
+LSUN_resize:
+    epsilon: 0.0024
+    temperature: 10
+Uniform:
+    epsilon: 0.0024
+    temperature: 1
+cifar10:
+    epsilon: 0.0014
+    temperature: 10
+iSUN:
+    epsilon: 0.0024
+    temperature: 10
+svhn:
+    epsilon: 0.005
+    temperature: 1

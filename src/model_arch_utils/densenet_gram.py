@@ -60,7 +60,8 @@ class BottleneckBlock(nn.Module):
         # For Gram ood detection
         if self.collecting:
             feature = [G_p(t, p=p) for p in range(1, 11)]
-            feature = np.array(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            # feature = torch.tensor(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            feature = torch.tensor(feature).transpose(0, 1)  # shape=[samples, powers,feature]
             self.gram_feats.append(feature)
 
     def reset(self):
@@ -91,7 +92,8 @@ class TransitionBlock(nn.Module):
         # For Gram ood detection
         if self.collecting:
             feature = [G_p(t, p=p) for p in range(1, 11)]
-            feature = np.array(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            # feature = torch.tensor(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            feature = torch.tensor(feature).transpose(0, 1)  # shape=[samples, powers,feature]
             self.gram_feats.append(feature)
 
     def reset(self):
@@ -121,7 +123,8 @@ class DenseBlock(nn.Module):
         # For Gram ood detection
         if self.collecting:
             feature = [G_p(t, p=p) for p in range(1, 11)]
-            feature = np.array(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            # feature = torch.tensor(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
+            feature = torch.tensor(feature).transpose(0, 1)  # shape=[samples, powers,feature]
             self.gram_feats.append(feature)
 
     def reset(self):

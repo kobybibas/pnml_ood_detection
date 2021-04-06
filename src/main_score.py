@@ -97,7 +97,7 @@ def calc_performance_odin(root: str, trainset_name: str) -> (dict, dict, list):
     ood_roots = [path for path in ood_roots if not path.endswith('pNML')]
 
     pnml_performance_list, odin_performance_list = [], []
-    for ood_root in tqdm(list(ood_roots), desc='odin: ood'):
+    for ood_root in tqdm(list(ood_roots), desc='odin_pnml: ood'):
         # Load IND products
         ind_prob_path = osp.join(ood_root, f"{trainset_name}_probs.npy")
 
@@ -251,7 +251,7 @@ def eval_single_model_performance(roots_i: str):
         method_i, model_name_i, trainset_name_i = osp.basename(root_i).split('_')[0:3]
         if method_i == 'baseline':
             pnml_df, max_prob_df = calc_performance_baseline(root_i, trainset_name_i)
-        elif method_i == 'odin':
+        elif method_i == 'odin_pnml':
             pnml_df, max_prob_df = calc_performance_odin(root_i, trainset_name_i)
         elif method_i == 'gram':
             pnml_df, max_prob_df = calc_performance_gram(root_i, trainset_name_i)

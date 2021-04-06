@@ -107,12 +107,14 @@ def split_val_test_idxs(num_samples: int, seed=1):
     return test_indices, validation_indices
 
 
-def calc_metrics_transformed(predictions, labels):
-    metric_dict = calc_metrics(predictions, labels)
-    fpr, tpr, _ = roc_curve(labels, predictions)
+def calc_metrics_transformed(ind_score, ood_score):
+    labels = [1] * len(ind_score) + [0] * len(ood_score)
+    scores = np.hstack([ind_score, ood_score])
 
-    metric_dict_transformed = {'TNR at TPR 95%': 1 - metric_dict['fpr_at_95_tpr'],
-                               'AUROC': metric_dict['auroc'],
-                               'Detection Acc.': 0.5 * (tpr + 1 - fpr).max()
-                               }
+    metric_dict = calc_metrics(scores, labels)
+    fpr, tpr, _ = roc_curve(labels, scores)
+
+    metric_dict_transformed = {'AUROC': 100 * metric_dict['auroc'],
+                               'TNR at TPR 95%': 100 * (1 - metric_dict['fpr_at_95_tpr']),
+                               'Detection Acc.': 100 * 0.5 * (tpr + 1 - fpr).max()}
     return metric_dict_transformed

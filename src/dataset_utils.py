@@ -13,13 +13,13 @@ from torchvision.datasets.folder import default_loader
 
 logger = logging.getLogger(__name__)
 testsets_names = [
-    'Imagenet',  # Tiny - ImageNet(crop)
-    'Imagenet_resize',  # Tiny-ImageNet (resize)
-    'LSUN',  # LSUN (crop)
+    'iSUN',  # iSUN 
     'LSUN_resize',  # LSUN (resize)
-    'iSUN',  # iSUN
-    'Gaussian',  # Gaussian noise
-    'Uniform'  # Uniform noise
+    'LSUN',  # LSUN (crop)
+    'Imagenet_resize',  # Tiny-ImageNet (resize)
+    'Imagenet',  # Tiny - ImageNet(crop)
+    'Uniform',  # Uniform noise
+    'Gaussian'  # Gaussian noise
 ]
 
 
@@ -32,12 +32,7 @@ class ImageFolderOOD(datasets.VisionDataset):
         if len(img_path_list) == 0:
             logger.error('Dataset was not downloaded {}'.format(root))
 
-        img_list = []
-        for img_path in img_path_list:
-            img = default_loader(img_path)
-            img_list.append(np.array(img))
-
-        self.data = np.asarray(img_list)
+        self.data_paths = img_path_list
         self.targets = [-1] * len(img_path_list)
 
     def __getitem__(self, index):
@@ -48,10 +43,11 @@ class ImageFolderOOD(datasets.VisionDataset):
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
-        img, target = self.data[index], self.targets[index]
+        img_path, target = self.data_paths[index], self.targets[index]
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
+        img = np.array(default_loader(img_path))
         img = Image.fromarray(img)
 
         if self.transform is not None:
@@ -63,7 +59,7 @@ class ImageFolderOOD(datasets.VisionDataset):
         return img, target
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data_paths)
 
 
 class UniformNoiseDataset(datasets.VisionDataset):
@@ -174,7 +170,9 @@ class FeaturesDataset(datasets.VisionDataset):
         return len(self.data)
 
 
-def get_dataloaders(model_name: str, trainset_name: str, root: str, batch_size: int = 128, n_workers: int = 4) -> dict:
+def get_dataloaders(model_name: str, trainset_name: str, root: str,
+                    batch_size: int = 128, n_workers: int = 4,
+                    dev_run: bool = False) -> dict:
     assert trainset_name in ['cifar10', 'cifar100', 'svhn']
     if model_name == 'densenet':
         data_transform = transforms.Compose([transforms.CenterCrop(size=(32, 32)),
@@ -197,12 +195,15 @@ def get_dataloaders(model_name: str, trainset_name: str, root: str, batch_size: 
     # Load out of distribution datasets
     loaders_dict = {}
     for name in testsets_names:
-        if name == 'Uniform':
+        if dev_run is True:
+            break
+        elif name == 'Uniform':
             loaders_dict['Uniform'] = get_uniform_noise_loader(data_transform, batch_size, n_workers)
         elif name == 'Gaussian':
             loaders_dict['Gaussian'] = get_gaussian_noise_loader(data_transform, batch_size, n_workers)
         else:
             loaders_dict[name] = get_image_folder_loader(data_transform, osj(root, name), batch_size, n_workers)
+
     loaders_dict['svhn'] = testloader_svhn
     loaders_dict['cifar10'] = testloader_cifar10
     loaders_dict['cifar100'] = testloader_cifar100
@@ -220,21 +221,25 @@ def get_cifar10_loaders(data_transform, data_dir: str = './data', batch_size: in
     """
     trainset = datasets.CIFAR10(root=data_dir,
                                 train=True,
-                                download=True,
+                                download=False,
                                 transform=data_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
-                                  num_workers=num_workers)
+                                  num_workers=num_workers,
+                                  pin_memory=True
+                                  )
 
     testset = datasets.CIFAR10(root=data_dir,
                                train=False,
-                               download=True,
+                               download=False,
                                transform=data_transform)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
-                                 num_workers=num_workers)
+                                 num_workers=num_workers,
+                                 pin_memory=True
+                                 )
     return trainloader, testloader
 
 
@@ -248,21 +253,25 @@ def get_cifar100_loaders(data_transform, data_dir: str = './data', batch_size: i
     """
     trainset = datasets.CIFAR100(root=data_dir,
                                  train=True,
-                                 download=True,
+                                 download=False,
                                  transform=data_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
-                                  num_workers=num_workers)
+                                  num_workers=num_workers,
+                                  pin_memory=True
+                                  )
 
     testset = datasets.CIFAR100(root=data_dir,
                                 train=False,
-                                download=True,
+                                download=False,
                                 transform=data_transform)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
-                                 num_workers=num_workers)
+                                 num_workers=num_workers,
+                                 pin_memory=True
+                                 )
     return trainloader, testloader
 
 
@@ -276,21 +285,25 @@ def get_svhn_loaders(data_transform, data_dir: str = './data', batch_size: int =
     """
     trainset = datasets.SVHN(root=data_dir,
                              split='train',
-                             download=True,
+                             download=False,
                              transform=data_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
-                                  num_workers=num_workers)
+                                  num_workers=num_workers,
+                                  pin_memory=True
+                                  )
 
     testset = datasets.SVHN(root=data_dir,
                             split='test',
-                            download=True,
+                            download=False,
                             transform=data_transform)
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
-                                 num_workers=num_workers)
+                                 num_workers=num_workers,
+                                 pin_memory=True
+                                 )
     return trainloader, testloader
 
 
@@ -299,7 +312,9 @@ def get_image_folder_loader(data_transform, path: str, batch_size: int = 128, nu
     testloader = torch.utils.data.DataLoader(testset,
                                              batch_size=batch_size,
                                              shuffle=False,
-                                             num_workers=num_workers)
+                                             num_workers=num_workers,
+                                             pin_memory=True
+                                             )
     return testloader
 
 
@@ -314,7 +329,9 @@ def get_uniform_noise_loader(data_transform, batch_size: int = 128, num_workers:
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
-                                 num_workers=num_workers)
+                                 num_workers=num_workers,
+                                 pin_memory=True
+                                 )
     return testloader
 
 
@@ -329,5 +346,7 @@ def get_gaussian_noise_loader(data_transform, batch_size: int = 128, num_workers
     testloader = data.DataLoader(testset,
                                  batch_size=batch_size,
                                  shuffle=False,
-                                 num_workers=num_workers)
+                                 num_workers=num_workers,
+                                 pin_memory=True
+                                 )
     return testloader
