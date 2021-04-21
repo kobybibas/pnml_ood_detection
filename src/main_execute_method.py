@@ -12,8 +12,9 @@ from omegaconf import DictConfig
 
 from dataset_utils import get_dataloaders
 from lit_utils.baseline_lit_utils import LitBaseline
-from lit_utils.gram_utils import LitGram
-from lit_utils.odin_utils import LitOdin
+from lit_utils.energy_lit_utils import LitEnergy
+from lit_utils.gram_lit_utils import LitGram
+from lit_utils.odin_lit_utils import LitOdin
 from method_utils import execute_baseline, execute_odin
 
 logger = logging.getLogger(__name__)
@@ -30,18 +31,21 @@ def merge_results(baseline_df, pnml_df, cfg):
 
 def load_odin_parmas(cfg):
     # Load odin params just in case
+    odin_vanilla, odin_pnml = None, None
     path = osp.join('..', 'configs', cfg.odin_vanilla_path)
-    logger.info(f'Load {path}')
-    with open(path, 'r')as stream:
-        odin_vanilla = yaml.safe_load(stream)
+    if osp.exists(path):
+        logger.info(f'Load {path}')
+        with open(path, 'r')as stream:
+            odin_vanilla = yaml.safe_load(stream)
     path = osp.join('..', 'configs', cfg.odin_pnml_path)
-    logger.info(f'Load {path}')
-    with open(path, 'r')as stream:
-        odin_pnml = yaml.safe_load(stream)
+    if osp.exists(path):
+        logger.info(f'Load {path}')
+        with open(path, 'r')as stream:
+            odin_pnml = yaml.safe_load(stream)
     return odin_vanilla, odin_pnml
 
 
-@hydra.main(config_path="../configs", config_name="extract_baseline")
+@hydra.main(config_path="../configs", config_name="execute_method")
 def run_experiment(cfg: DictConfig):
     t0 = time.time()
     logger.info(cfg)
@@ -49,9 +53,6 @@ def run_experiment(cfg: DictConfig):
     os.chdir(hydra.utils.get_original_cwd())
     logger.info(f'out_dir={out_dir}')
     pl.seed_everything(cfg.seed)
-
-    # ODIN params
-    odin_vanilla, odin_pnml = load_odin_parmas(cfg)
 
     # Load datasets
     t1 = time.time()
@@ -71,15 +72,19 @@ def run_experiment(cfg: DictConfig):
 
     # Execute method
     if cfg.method == 'baseline':
-        lit_model_h = LitBaseline(cfg.model, cfg.trainset)
+        lit_model_h = LitBaseline(cfg.model, cfg.trainset, out_dir)
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
     elif cfg.method == 'odin':
-        lit_model_h = LitOdin(cfg.model, cfg.trainset)
+        lit_model_h = LitOdin(cfg.model, cfg.trainset, out_dir)
         lit_model_h.set_validation_size(cfg.validation_size)  # skip this sample: odin was fine-tuned on them
+        odin_vanilla, odin_pnml = load_odin_parmas(cfg)
         baseline_df, _ = execute_odin(cfg, lit_model_h, trainer, loaders_dict, odin_vanilla)
         _, pnml_df = execute_odin(cfg, lit_model_h, trainer, loaders_dict, odin_pnml)
     elif cfg.method == 'gram':
-        lit_model_h = LitGram(cfg.model, cfg.trainset)
+        lit_model_h = LitGram(cfg.model, cfg.trainset, out_dir)
+        baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
+    elif cfg.method == 'energy':
+        lit_model_h = LitEnergy(cfg.model, cfg.trainset, out_dir)
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
     else:
         raise ValueError(f'method={cfg.method} is not supported')

@@ -9,12 +9,11 @@ Original code is from https://github.com/kuangliu/pytorch-cifar/blob/master/mode
 '''
 import itertools
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model_arch_utils.gram_model_utils import G_p
+from model_arch_utils.gram_model_utils import gram_record
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -65,11 +64,8 @@ class BasicBlock(nn.Module):
         return out
 
     def record(self, t):
-        # For Gram ood detection
-        if self.collecting:
-            feature = [G_p(t, p=p) for p in range(1, 11)]
-            feature = np.array(feature).transpose(1, 0, 2)  # shape=[samples, powers,feature]
-            self.gram_feats.append(feature)
+        feature = gram_record(t, self.collecting)
+        return self.gram_feats.append(feature)
 
     def reset(self):
         self.gram_feats = []

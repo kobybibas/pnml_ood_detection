@@ -1,81 +1,60 @@
 import itertools
-import json
 import logging
 import os
 import os.path as osp
 
 import hydra
-import numpy as np
+import pytorch_lightning as pl
 import torch
+import yaml
 from omegaconf import DictConfig
+from torch.utils.data import DataLoader
 
 from dataset_utils import get_dataloaders
-from model_utils import get_model, test_pretrained_model, extract_features_from_loader
-from odin_utils import odin_extract_features_from_loader
-from score_utils import calc_metrics_transformed as calc_metrics
-from score_utils import transform_features, calc_regret_on_set, calc_projection_matrices, add_bias_term
+from lit_utils.odin_lit_utils import LitOdin
 
 logger = logging.getLogger(__name__)
 
-"""
-Example of running:
-CUDA_VISIBLE_DEVICES=0 python optimize_odin.py -model densenet -trainset cifar10 -num_workers 0
-"""
 
-
-def optimize_odin_to_dataset(model, ind_loader, ood_loader, trainloader,
-                             num_samples: int,
-                             epsilons: list, temperatures: list, model_name: str,
-                             is_with_pnml: bool,
-                             is_dev_run: bool = False):
-    p_parallel, p_bot = 0, 0
-    if is_with_pnml is True:
-        logger.info('extract_features_from_loader: trainset')
-        features_dataset = extract_features_from_loader(model, trainloader, is_dev_run=is_dev_run)
-        trainset_features = features_dataset.data
-        trainset_features = transform_features(add_bias_term(trainset_features))
-        p_parallel, p_bot = calc_projection_matrices(trainset_features)
-
-    best_tnr, best_eps, best_temperature = 0.0, 0.0, 1.0
+def optimize_odin_to_dataset(lit_model_h: LitOdin, trainer, ind_loader: DataLoader, ood_loader: DataLoader,
+                             ood_name: str,
+                             epsilons: list, temperatures: list, is_dev_run: bool = False) -> (dict, dict):
+    best_odin_tnr, best_odin_eps, best_odin_temperature = 0.0, 0.0, 1.0
+    best_pnml_tnr, best_pnml_eps, best_pnml_temperature = 0.0, 0.0, 1.0
     for i, (temperature, eps) in enumerate(itertools.product(temperatures, epsilons)):
-        features_dataset = odin_extract_features_from_loader(model, ind_loader, eps, temperature, model_name,
-                                                             num_samples=num_samples, is_dev_run=is_dev_run)
-        probs_ind = features_dataset.probs
-        features_ind = features_dataset.data
-        features_dataset = odin_extract_features_from_loader(model, ood_loader, eps, temperature, model_name,
-                                                             num_samples=num_samples, is_dev_run=is_dev_run)
-        probs_ood = features_dataset.probs
-        features_ood = features_dataset.data
 
-        if is_with_pnml is False:
-            max_prob_ind = probs_ind.max(axis=1)
-            max_prob_ood = probs_ood.max(axis=1)
+        # Eval ind score
+        lit_model_h.set_ood(lit_model_h.ind_name)
+        trainer.test(test_dataloaders=ind_loader, ckpt_path=None, verbose=False)
 
-            labels = [1] * len(max_prob_ind) + [0] * len(max_prob_ood)
-            scores = np.append(max_prob_ind, max_prob_ood)
-            performance_dict = calc_metrics(scores, labels)
-            tnr = performance_dict['TNR at TPR 95%']
-        else:
-            features_ind = transform_features(add_bias_term(features_ind))
-            regrets_ind, _ = calc_regret_on_set(features_ind, probs_ind, p_parallel, p_bot)
-            features_ood = transform_features(add_bias_term(features_ood))
-            regrets_ood, _ = calc_regret_on_set(features_ood, probs_ood, p_parallel, p_bot)
+        # Eval ood score
+        lit_model_h.set_ood(ood_name)
+        trainer.test(test_dataloaders=ood_loader, ckpt_path=None, verbose=False)
 
-            labels = [1] * len(regrets_ind) + [0] * len(regrets_ood)
-            scores = -np.append(regrets_ind, regrets_ood)
-            performance_dict = calc_metrics(scores, labels)
-            tnr = performance_dict['TNR at TPR 95%']
+        # Get results
+        baseline_res, pnml_res = lit_model_h.get_performance()
+        odin_tnr = float(baseline_res['TNR at TPR 95%'])
+        pnml_tnr = float(pnml_res['TNR at TPR 95%'])
 
-        logger.info('[eps temperature tnr]=[{} {} {:.3f}]'.format(eps, temperature, tnr))
-        if tnr > best_tnr:
-            logger.info('    New best tnr.')
-            best_eps = eps
-            best_temperature = temperature
-            best_tnr = tnr
+        logger.info('[eps temperature odin_tnr pnml_tnr]=[{} {} {:.3f} {:.3f}]'.format(eps, temperature,
+                                                                                       odin_tnr, pnml_tnr))
+        if odin_tnr > best_odin_tnr:
+            logger.info('    New best odin_tnr.')
+            best_odin_eps = eps
+            best_odin_temperature = temperature
+            best_odin_tnr = odin_tnr
+        if pnml_tnr > best_pnml_tnr:
+            logger.info('    New best pnml_tnr.')
+            best_pnml_eps = eps
+            best_pnml_temperature = temperature
+            best_pnml_tnr = odin_tnr
 
         if is_dev_run:
             break
-    return best_eps, best_temperature, best_tnr
+
+    odin_dict = {'epsilon': best_odin_eps, 'temperature': best_odin_temperature, 'tnr': round(best_odin_tnr, 2)}
+    pnml_dict = {'epsilon': best_pnml_eps, 'temperature': best_pnml_temperature, 'tnr': round(best_pnml_tnr, 2)}
+    return odin_dict, pnml_dict
 
 
 @hydra.main(config_path="../configs", config_name="optimize_odin")
@@ -85,48 +64,48 @@ def optimize_odin(cfg: DictConfig):
     os.chdir(hydra.utils.get_original_cwd())
     logger.info('torch.cuda.is_available={}'.format(torch.cuda.is_available()))
 
-    # Load pretrained model
-    logger.info('Get Model: {} {}'.format(cfg.model, cfg.trainset))
-    model = get_model(cfg.model, cfg.trainset)
-
     # Load datasets
     logger.info('Load datasets: {}'.format(cfg.data_dir))
-    loaders_dict = get_dataloaders(cfg.model,
-                                   cfg.trainset, cfg.data_dir, cfg.batch_size,
+    loaders_dict = get_dataloaders(cfg.model, cfg.trainset, cfg.data_dir, cfg.batch_size,
                                    cfg.num_workers if cfg.dev_run is False else 0)
-    assert 'trainset' in loaders_dict  # Contains the trainset loader
-    assert cfg.trainset in loaders_dict  # This is the in-distribution testset loader
+    num_loaders = len(loaders_dict)
 
-    logger.info('Datasets: {}'.format(loaders_dict.keys()))
-    if cfg.test_pretrained is True:
-        logger.info('Testing pretrained model')
-        ind_testset = loaders_dict[cfg.trainset]
-        test_pretrained_model(model, loaders_dict['trainset'], ind_testset, is_dev_run=cfg.dev_run)
+    # Get ind loaders
+    train_loader, ind_loader = loaders_dict.pop('trainset'), loaders_dict.pop(cfg.trainset)
 
-    # Remove trainset
-    trainloader = loaders_dict.pop('trainset')
-    ind_loader = loaders_dict.pop(cfg.trainset)
+    # Initialize trainer
+    trainer = pl.Trainer(gpus=1 if torch.cuda.is_available() else 0,
+                         fast_dev_run=cfg.dev_run,
+                         num_sanity_val_steps=0,
+                         checkpoint_callback=False,
+                         max_epochs=1,
+                         default_root_dir=out_dir,
+                         limit_test_batches=int(round(cfg.num_samples / cfg.batch_size)  # use only validation samples
+                                                ))
+    lit_model_h = LitOdin(cfg.model, cfg.trainset, out_dir)
+    trainer.fit(lit_model_h, train_dataloader=train_loader)
 
     # Optimize odin_pnml for each dataset
-    best_eps_dict = {}
-    for i, (data_name, ood_loader) in enumerate(loaders_dict.items()):
-        epsilon, temperature, tnr = optimize_odin_to_dataset(model, ind_loader, ood_loader, trainloader,
-                                                             cfg.num_samples,
-                                                             cfg.epsilons, cfg.temperatures, cfg.model,
-                                                             cfg.is_with_pnml,
-                                                             is_dev_run=cfg.dev_run)
-        logger.info('[{}/{}] {}: best [epsilon temperature tnr]=[{} {} {}]'.format(i, len(loaders_dict.keys()) - 1,
-                                                                                   data_name,
-                                                                                   epsilon, temperature, tnr))
-        best_eps_dict[data_name] = {'epsilon': epsilon,
-                                    'temperature': temperature}
+    odin_dicts, pnml_dicts = {}, {}
+    for i, (ood_name, ood_loader) in enumerate(loaders_dict.items()):
+        odin_dict, pnml_dict = optimize_odin_to_dataset(lit_model_h, trainer, ind_loader, ood_loader,
+                                                        ood_name, cfg.epsilons, cfg.temperatures,
+                                                        is_dev_run=cfg.dev_run)
+        logger.info('[{}/{}] {}: odin={} pnml={}'.format(i, num_loaders - 1, ood_name, odin_dict, pnml_dict))
+
+        odin_dicts[ood_name] = odin_dict
+        pnml_dicts[ood_name] = pnml_dict
         if cfg.dev_run:
             break
 
-    with open(osp.join(out_dir, 'optimized_odin_params.json'), 'w') as f:
-        json.dump(best_eps_dict, f, ensure_ascii=True, indent=4, sort_keys=True)
+    # Save results to file
+    for method_name, method_dict in [('odin_vanilla', odin_dicts), ('odin_pnml', pnml_dicts)]:
+        method_out_dir = osp.join(out_dir, method_name)
+        os.makedirs(method_out_dir, exist_ok=True)
+        with open(osp.join(method_out_dir, f'{cfg.model}_{cfg.trainset}.yaml'), 'w') as f:
+            yaml.dump(method_dict, f, sort_keys=True)
 
-    logger.info('Finished!')
+    logger.info('Finished! out_dir={}'.format(out_dir))
 
 
 if __name__ == "__main__":

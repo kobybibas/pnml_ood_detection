@@ -1,5 +1,7 @@
 import logging
+import os.path as osp
 
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
@@ -12,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 class LitBaseline(pl.LightningModule):
 
-    def __init__(self, model_name: str, ind_name: str):
+    def __init__(self, model_name: str, ind_name: str, out_dir: str):
         super().__init__()
         self.model_name = model_name
         self.ind_name = ind_name
         self.model = self.get_model()
         self.x_t_x_inv = None
-        self.w = self.model.fc if hasattr(self.model, 'fc') else self.linear
+        self.w = self.model.fc if hasattr(self.model, 'fc') else self.model.linear
 
         # IND
         self.is_ind = True
@@ -32,6 +34,8 @@ class LitBaseline(pl.LightningModule):
         self.baseline_res, self.pnml_res = None, None
 
         self.validation_size = 0
+        self.out_dir = out_dir
+        self.temperature = 1.0  # Temperature
 
     def set_validation_size(self, validation_size: int):
         self.validation_size = validation_size
@@ -57,8 +61,10 @@ class LitBaseline(pl.LightningModule):
 
         with torch.no_grad():
             logits = self.model(x)
+            logits = logits / self.temperature
             features = self.model.get_features()
-            features = features / torch.linalg.norm(features, dim=-1, keepdim=True)
+            norm = torch.linalg.norm(features, dim=-1, keepdim=True)
+            features = features / norm
 
             # Forward with feature normalization
             logits_w_norm_features = self.w(features)
@@ -74,7 +80,8 @@ class LitBaseline(pl.LightningModule):
         y_hat = probs.argmax(dim=-1)
         is_correct = y_hat == y
         output = {'probs': probs, 'probs_normalized': probs_normalized,
-                  'features': features, 'loss': loss, 'is_correct': is_correct}
+                  'features': features, 'loss': loss, 'is_correct': is_correct,
+                  'logits': logits}
         return output
 
     def training_epoch_end(self, outputs):
@@ -98,7 +105,7 @@ class LitBaseline(pl.LightningModule):
         is_correct = y_hat == y
 
         output = {'probs': probs, 'probs_normalized': probs_normalized, 'is_correct': is_correct,
-                  'features': features}
+                  'features': features, 'logits': logits}
         return output
 
     def test_epoch_end(self, outputs):
@@ -113,32 +120,37 @@ class LitBaseline(pl.LightningModule):
         features = features[self.validation_size:]
 
         # Compute the normalization factor
-        regrets = self.calc_regrets(features, probs_normalized)
-        max_probs = torch.max(probs, dim=-1).values
+        regrets = self.calc_regrets(features, probs_normalized).cpu().numpy()
+        max_probs = torch.max(probs, dim=-1).values.cpu().numpy()
 
         if self.is_ind:
             logger.info('\nValidation set acc {:.2f}%'.format(acc))
 
             # Store IND scores
-            self.ind_max_probs = max_probs.cpu().numpy()
-            self.ind_regrets = regrets.cpu().numpy()
+            self.ind_max_probs = max_probs
+            self.ind_regrets = regrets
 
         else:
             # Run evaluation on the OOD set
-            self.baseline_res = calc_metrics_transformed(self.ind_max_probs,
-                                                         max_probs.cpu().numpy())
-            self.pnml_res = calc_metrics_transformed(1 - self.ind_regrets,
-                                                     (1 - regrets).cpu().numpy())
+            self.baseline_res = calc_metrics_transformed(self.ind_max_probs, max_probs)
+            self.pnml_res = calc_metrics_transformed(1 - self.ind_regrets, 1 - regrets)
+
+        np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_pnml_regret.txt'), regrets)
+        np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_baseline.txt'), max_probs)
 
     def get_performance(self):
         return self.baseline_res, self.pnml_res
 
     def calc_regrets(self, features: torch.Tensor, probs: torch.Tensor) -> torch.Tensor:
-        x_proj = torch.matmul(torch.matmul(features.unsqueeze(1), self.x_t_x_inv), features.unsqueeze(-1))
+        device = features.device
+
+        x_proj = torch.matmul(torch.matmul(features.unsqueeze(1), self.x_t_x_inv.to(device)),
+                              features.unsqueeze(-1))
         x_proj = x_proj.squeeze(-1)
         x_t_g = x_proj / (1 + x_proj)
 
         # compute the normalization factor
+        probs = probs.to(device)
         n_classes = probs.shape[-1]
         nf = torch.sum(probs / (probs + (1 - probs) * (probs ** x_t_g)), dim=-1)
         regrets = torch.log(nf) / torch.log(torch.tensor(n_classes))

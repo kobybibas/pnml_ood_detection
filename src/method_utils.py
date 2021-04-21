@@ -4,7 +4,7 @@ import time
 import pandas as pd
 
 from lit_utils.baseline_lit_utils import LitBaseline
-from lit_utils.odin_utils import LitOdin
+from lit_utils.odin_lit_utils import LitOdin
 
 logger = logging.getLogger(__name__)
 

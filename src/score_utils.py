@@ -101,13 +101,19 @@ def calc_list_of_dict_mean(dict_list):
 
 def split_val_test_idxs(num_samples: int, seed=1):
     random.seed(seed)
-
     validation_indices = random.sample(range(num_samples), int(0.1 * num_samples))
     test_indices = sorted(list(set(range(num_samples)) - set(validation_indices)))
     return test_indices, validation_indices
 
 
-def calc_metrics_transformed(ind_score, ood_score):
+def compute_list_of_dict_mean(dict_list: list) -> dict:
+    mean_dict = {}
+    for key in dict_list[0].keys():
+        mean_dict[key] = sum(d[key] for d in dict_list) / len(dict_list)
+    return mean_dict
+
+
+def calc_metrics_transformed(ind_score: np.ndarray, ood_score: np.ndarray) -> dict:
     labels = [1] * len(ind_score) + [0] * len(ood_score)
     scores = np.hstack([ind_score, ood_score])
 

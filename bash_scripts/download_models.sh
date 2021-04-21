@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+mkdir ../models
+cd ../models || exit
+
 wget https://www.dropbox.com/s/pnbvr16gnpyr1zg/densenet_cifar10.pth
 wget https://www.dropbox.com/s/7ur9qo81u30od36/densenet_cifar100.pth
 wget https://www.dropbox.com/s/9ol1h2tb3xjdpp1/densenet_svhn.pth

@@ -13,7 +13,7 @@ from torchvision.datasets.folder import default_loader
 
 logger = logging.getLogger(__name__)
 testsets_names = [
-    'iSUN',  # iSUN 
+    'iSUN',  # iSUN
     'LSUN_resize',  # LSUN (resize)
     'LSUN',  # LSUN (crop)
     'Imagenet_resize',  # Tiny-ImageNet (resize)
@@ -171,25 +171,39 @@ class FeaturesDataset(datasets.VisionDataset):
 
 
 def get_dataloaders(model_name: str, trainset_name: str, root: str,
-                    batch_size: int = 128, n_workers: int = 4,
+                    batch_size: int = 128, n_workers: int = 4, is_training: bool = False,
                     dev_run: bool = False) -> dict:
     assert trainset_name in ['cifar10', 'cifar100', 'svhn']
     if model_name == 'densenet':
-        data_transform = transforms.Compose([transforms.CenterCrop(size=(32, 32)),
-                                             transforms.ToTensor(),
-                                             transforms.Normalize((125.3 / 255, 123.0 / 255, 113.9 / 255),
-                                                                  (63.0 / 255, 62.1 / 255.0, 66.7 / 255.0)), ])
+        norm_transform = transforms.Normalize((125.3 / 255, 123.0 / 255, 113.9 / 255),
+                                              (63.0 / 255, 62.1 / 255.0, 66.7 / 255.0))
     elif model_name == 'resnet':
-        data_transform = transforms.Compose([transforms.CenterCrop(size=(32, 32)),
-                                             transforms.ToTensor(),
-                                             transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                                                  (0.2023, 0.1994, 0.2010)), ])
+        norm_transform = transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                              (0.2023, 0.1994, 0.2010))
+    elif model_name == 'wrn':
+        mean = [x / 255 for x in [125.3, 123.0, 113.9]]
+        std = [x / 255 for x in [63.0, 62.1, 66.7]]
+        norm_transform = transforms.Normalize(mean, std)
     else:
         raise ValueError(f'{model_name} is not supported')
 
-    trainloader_cifar10, testloader_cifar10 = get_cifar10_loaders(data_transform, root, batch_size, n_workers)
-    trainloader_cifar100, testloader_cifar100 = get_cifar100_loaders(data_transform, root, batch_size, n_workers)
-    trainloader_svhn, testloader_svhn = get_svhn_loaders(data_transform, osj(root, 'svhn'), batch_size, n_workers)
+    train_transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor(),
+                                          norm_transform])
+    data_transform = transforms.Compose([transforms.CenterCrop(size=(32, 32)),
+                                         transforms.ToTensor(),
+                                         norm_transform])
+
+    trainloader_cifar10, testloader_cifar10 = get_cifar10_loaders(data_transform, train_transform,
+                                                                  root, batch_size, n_workers,
+                                                                  is_training)
+    trainloader_cifar100, testloader_cifar100 = get_cifar100_loaders(data_transform, train_transform,
+                                                                     root, batch_size, n_workers,
+                                                                     is_training)
+    trainloader_svhn, testloader_svhn = get_svhn_loaders(data_transform, train_transform,
+                                                         osj(root, 'svhn'), batch_size, n_workers,
+                                                         is_training)
     trainloader_dict = {'cifar10': trainloader_cifar10, 'cifar100': trainloader_cifar100, 'svhn': trainloader_svhn}
 
     # Load out of distribution datasets
@@ -211,7 +225,9 @@ def get_dataloaders(model_name: str, trainset_name: str, root: str,
     return loaders_dict
 
 
-def get_cifar10_loaders(data_transform, data_dir: str = './data', batch_size: int = 128, num_workers: int = 4):
+def get_cifar10_loaders(data_transform, train_transform,
+                        data_dir: str = './data', batch_size: int = 128, num_workers: int = 4,
+                        is_training: bool = False):
     """
     create train and test pytorch dataloaders for CIFAR10 dataset
     :param data_dir: the folder that will contain the data
@@ -222,7 +238,7 @@ def get_cifar10_loaders(data_transform, data_dir: str = './data', batch_size: in
     trainset = datasets.CIFAR10(root=data_dir,
                                 train=True,
                                 download=False,
-                                transform=data_transform)
+                                transform=data_transform if is_training is False else train_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
@@ -243,7 +259,9 @@ def get_cifar10_loaders(data_transform, data_dir: str = './data', batch_size: in
     return trainloader, testloader
 
 
-def get_cifar100_loaders(data_transform, data_dir: str = './data', batch_size: int = 128, num_workers: int = 4):
+def get_cifar100_loaders(data_transform, train_transform,
+                         data_dir: str = './data', batch_size: int = 128, num_workers: int = 4,
+                         is_training: bool = False):
     """
     create train and test pytorch dataloaders for CIFAR100 dataset
     :param data_dir: the folder that will contain the data
@@ -254,7 +272,7 @@ def get_cifar100_loaders(data_transform, data_dir: str = './data', batch_size: i
     trainset = datasets.CIFAR100(root=data_dir,
                                  train=True,
                                  download=False,
-                                 transform=data_transform)
+                                 transform=data_transform if is_training is False else train_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,
@@ -275,7 +293,9 @@ def get_cifar100_loaders(data_transform, data_dir: str = './data', batch_size: i
     return trainloader, testloader
 
 
-def get_svhn_loaders(data_transform, data_dir: str = './data', batch_size: int = 128, num_workers: int = 4):
+def get_svhn_loaders(data_transform, train_transform,
+                     data_dir: str = './data', batch_size: int = 128, num_workers: int = 4,
+                     is_training: bool = False):
     """
     create train and test pytorch dataloaders for CIFAR100 dataset
     :param data_dir: the folder that will contain the data
@@ -286,7 +306,7 @@ def get_svhn_loaders(data_transform, data_dir: str = './data', batch_size: int =
     trainset = datasets.SVHN(root=data_dir,
                              split='train',
                              download=False,
-                             transform=data_transform)
+                             transform=data_transform if is_training is False else train_transform)
     trainloader = data.DataLoader(trainset,
                                   batch_size=batch_size,
                                   shuffle=False,

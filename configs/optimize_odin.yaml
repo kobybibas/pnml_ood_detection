@@ -2,18 +2,15 @@ model: densenet                   # Model architecture name (densenet/resnet)
 trainset: cifar10                 # Trainset that used to train the model (cifar10/cifar100/svhn)
 data_dir: ../data                 # The directory that contains the datasets
 model_dir: ../models              # The directory that contains the trained model file
-batch_size: 200                   # Batch size to use in the forward loop
+batch_size: 225                   # Batch size to use in the forward loop
 num_workers: 4                    # Number of CPU workers
 dev_run: false
 
-is_with_pnml: false
 
-epsilons: [0, 0.0005, 0.001, 0.0014, 0.002, 0.0024, 0.005, 0.01, 0.05, 0.1, 0.2]
-temperatures: [1, 10, 100, 1000]
-num_samples: 1000         # Number of samples to optimize on
-
-test_pretrained: false
+epsilons: [ 0, 0.0005, 0.001, 0.0014, 0.002, 0.0024, 0.005, 0.01, 0.05, 0.1, 0.2 ]
+temperatures: [ 1, 10, 100, 1000 ]
+num_samples: 1000   # Number of samples to optimize on
 
 hydra:
   run:
-    dir: ../outputs/optimize_odin_${model}_${trainset}_is_pnml_${is_with_pnml}_${now:%Y%m%d_%H%M%S}
+    dir: ../outputs/optimize_odin_${model}_${trainset}_${now:%Y%m%d_%H%M%S}
