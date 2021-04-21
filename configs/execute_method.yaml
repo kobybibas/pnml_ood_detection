@@ -8,8 +8,6 @@ trainset: cifar100       # The training set that was used to train the model (ci
 batch_size: 2048          # Batch size to use in the forward loop
 num_workers: 4           # Number of CPU workers
 
-validation_size: 1000
-temperature: 1.0
 
 method: gram # baseline/gram/odin/cosine/energy
 

@@ -32,10 +32,10 @@ class LitBaseline(pl.LightningModule):
 
         # Metrics
         self.baseline_res, self.pnml_res = None, None
+        self.is_save_scores = False
 
         self.validation_size = 0
         self.out_dir = out_dir
-        self.temperature = 1.0  # Temperature
 
     def set_validation_size(self, validation_size: int):
         self.validation_size = validation_size
@@ -61,7 +61,6 @@ class LitBaseline(pl.LightningModule):
 
         with torch.no_grad():
             logits = self.model(x)
-            logits = logits / self.temperature
             features = self.model.get_features()
             norm = torch.linalg.norm(features, dim=-1, keepdim=True)
             features = features / norm
@@ -93,7 +92,8 @@ class LitBaseline(pl.LightningModule):
         x_t_x = torch.matmul(features.t(), features)
         _, s, _ = torch.linalg.svd(x_t_x, compute_uv=False)
         logger.info(f'Training set smallest singular values: {s[-10:]}')
-        self.x_t_x_inv = torch.linalg.inv(x_t_x) if s[-1] > 1e-16 else torch.linalg.pinv(x_t_x, hermitian=True)
+        # self.x_t_x_inv = torch.linalg.inv(x_t_x) if s[-1] > 1e-16 else torch.linalg.pinv(x_t_x, hermitian=True)
+        self.x_t_x_inv = torch.linalg.pinv(x_t_x)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -114,11 +114,6 @@ class LitBaseline(pl.LightningModule):
         features = torch.vstack([out['features'] for out in outputs])
         acc = torch.hstack([out['is_correct'] for out in outputs]).float().mean() * 100
 
-        # Omit the samples that a method was fine-tuned on (for instance on ODIN).
-        probs = probs[self.validation_size:]
-        probs_normalized = probs_normalized[self.validation_size:]
-        features = features[self.validation_size:]
-
         # Compute the normalization factor
         regrets = self.calc_regrets(features, probs_normalized).cpu().numpy()
         max_probs = torch.max(probs, dim=-1).values.cpu().numpy()
@@ -135,8 +130,9 @@ class LitBaseline(pl.LightningModule):
             self.baseline_res = calc_metrics_transformed(self.ind_max_probs, max_probs)
             self.pnml_res = calc_metrics_transformed(1 - self.ind_regrets, 1 - regrets)
 
-        np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_pnml_regret.txt'), regrets)
-        np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_baseline.txt'), max_probs)
+        if self.is_save_scores is True:
+            np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_pnml_regret.txt'), regrets)
+            np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_baseline.txt'), max_probs)
 
     def get_performance(self):
         return self.baseline_res, self.pnml_res

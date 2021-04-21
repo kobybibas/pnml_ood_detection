@@ -104,7 +104,6 @@ class LitGram(LitBaseline):
                 ood_deviations_norm = (ood_deviations / dev_norm_sum).mean(dim=1)
                 baseline_res = calc_metrics_transformed(-ind_deviations_norm.cpu().numpy(),
                                                         -ood_deviations_norm.cpu().numpy())
-                print(baseline_res)
                 # Compute pNML
                 dev_norm_std = ind_deviations_val.std(dim=0, keepdims=True)
                 dev_norm_std[dev_norm_std == 0.0] = 1.0
@@ -121,8 +120,9 @@ class LitGram(LitBaseline):
                 baseline_res_list.append(baseline_res)
                 pnml_res_list.append(pnml_res)
 
-            self.baseline_res = compute_list_of_dict_mean(baseline_res_list)
-            self.pnml_res = compute_list_of_dict_mean(pnml_res_list)
+            if self.is_save_scores is True:
+                self.baseline_res = compute_list_of_dict_mean(baseline_res_list)
+                self.pnml_res = compute_list_of_dict_mean(pnml_res_list)
 
 
 def compute_minmaxs_train(gram_feature_layers, probs):

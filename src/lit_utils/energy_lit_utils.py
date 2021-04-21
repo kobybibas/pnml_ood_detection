@@ -1,8 +1,9 @@
 import logging
+import os.path as osp
 
 import numpy as np
 import torch
-import os.path as osp
+
 from lit_utils.baseline_lit_utils import LitBaseline
 from model_utils import get_energy_model
 from score_utils import calc_metrics_transformed
@@ -11,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class LitEnergy(LitBaseline):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.temperature = 1.0
 
     def get_model(self):
         return get_energy_model(self.model_name, self.ind_name)

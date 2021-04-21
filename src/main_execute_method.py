@@ -31,17 +31,14 @@ def merge_results(baseline_df, pnml_df, cfg):
 
 def load_odin_parmas(cfg):
     # Load odin params just in case
-    odin_vanilla, odin_pnml = None, None
     path = osp.join('..', 'configs', cfg.odin_vanilla_path)
-    if osp.exists(path):
-        logger.info(f'Load {path}')
-        with open(path, 'r')as stream:
-            odin_vanilla = yaml.safe_load(stream)
+    logger.info(f'Load {path}')
+    with open(path, 'r')as stream:
+        odin_vanilla = yaml.safe_load(stream)
     path = osp.join('..', 'configs', cfg.odin_pnml_path)
-    if osp.exists(path):
-        logger.info(f'Load {path}')
-        with open(path, 'r')as stream:
-            odin_pnml = yaml.safe_load(stream)
+    logger.info(f'Load {path}')
+    with open(path, 'r')as stream:
+        odin_pnml = yaml.safe_load(stream)
     return odin_vanilla, odin_pnml
 
 
@@ -76,10 +73,7 @@ def run_experiment(cfg: DictConfig):
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
     elif cfg.method == 'odin':
         lit_model_h = LitOdin(cfg.model, cfg.trainset, out_dir)
-        lit_model_h.set_validation_size(cfg.validation_size)  # skip this sample: odin was fine-tuned on them
-        odin_vanilla, odin_pnml = load_odin_parmas(cfg)
-        baseline_df, _ = execute_odin(cfg, lit_model_h, trainer, loaders_dict, odin_vanilla)
-        _, pnml_df = execute_odin(cfg, lit_model_h, trainer, loaders_dict, odin_pnml)
+        baseline_df, pnml_df = execute_odin(cfg, lit_model_h, trainer, loaders_dict)
     elif cfg.method == 'gram':
         lit_model_h = LitGram(cfg.model, cfg.trainset, out_dir)
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)

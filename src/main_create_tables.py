@@ -47,10 +47,6 @@ def load_csv_results(csv_path: str, ind_name: str) -> pd.DataFrame:
                      "svhn": "SVHN"})
     df = df.set_index("ood_name")
 
-    if ind_name == 'cifar10':
-        df = df.drop('CIFAR-100')
-    elif ind_name == 'cifar100':
-        df = df.drop('CIFAR-10')
     return df
 
 

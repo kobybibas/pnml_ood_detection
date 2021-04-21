@@ -1,7 +1,8 @@
 #!/bin/bash
 
 declare -a trainsets=("cifar10" "cifar100" "svhn")
-declare -a methods=("baseline" "odin" "gram")
+#declare -a methods=("baseline" "odin" "gram")
+declare -a methods=("baseline" "odin")
 declare -a models=("densenet" "resnet")
 
 cd ../src || exit
@@ -11,13 +12,10 @@ for trainset in ${trainsets[@]}; do
     for model in ${models[@]}; do
       echo $method $model $trainset
 
-
+      batch_size=2048
       if [ $method == "odin" ]; then
-          batch_size=256
-      else
-          batch_size=2048
+        batch_size=256
       fi
-
 
       python main_execute_method.py method=$method model=$model trainset=$trainset batch_size=$batch_size
     done

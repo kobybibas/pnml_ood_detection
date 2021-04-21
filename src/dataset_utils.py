@@ -222,6 +222,12 @@ def get_dataloaders(model_name: str, trainset_name: str, root: str,
     loaders_dict['cifar10'] = testloader_cifar10
     loaders_dict['cifar100'] = testloader_cifar100
     loaders_dict['trainset'] = trainloader_dict[trainset_name]
+
+    # Remove ood sets with overlapping classes
+    if trainset_name == 'cifar10':
+        loaders_dict.pop('cifar100')
+    elif trainset_name == 'cifar100':
+        loaders_dict.pop('cifar10')
     return loaders_dict
 
 

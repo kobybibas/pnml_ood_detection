@@ -33,6 +33,7 @@ class LitOdin(LitBaseline):
 
         logits, features, logits_w_norm_features = super().forward(x_perturbs)
         logits = logits / self.temperature
+        # logits_w_norm_features = logits_w_norm_features / self.temperature
         return logits, features, logits_w_norm_features
 
     @staticmethod
