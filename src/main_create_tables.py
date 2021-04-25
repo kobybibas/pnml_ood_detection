@@ -1,3 +1,4 @@
+import fileinput
 import os.path as osp
 import sys
 from glob import glob
@@ -7,6 +8,62 @@ import pandas as pd
 sys.path.append("../src")
 
 
+def replace_string_in_file(file_path: str, src: str, target: str):
+    with fileinput.FileInput(file_path, inplace=True) as file:
+        for line in file:
+            print(line.replace(src, target), end='')
+
+
+
+def manipulate_output_file(out_file):
+    src = "baseline/+pnml"
+    target = "Baseline/+pNML"
+    replace_string_in_file(out_file, src, target)
+
+    src = "odin/+pnml"
+    target = "ODIN/+pNML"
+    replace_string_in_file(out_file, src, target)
+
+    src = "gram/+pnml"
+    target = "Gram/+pNML"
+    replace_string_in_file(out_file, src, target)
+
+    src = "     &           &"
+    target = "IND & OOD &"
+    replace_string_in_file(out_file, src, target)
+
+    src = "&      &"
+    target = "IND & OOD &"
+    replace_string_in_file(out_file, src, target)
+
+    src = "IND & OOD &                       &                       &                       \\\\"
+    target = ""
+    replace_string_in_file(out_file, src, target)
+
+    src = "\cline{1-5}"
+    target = "\midrule"
+    replace_string_in_file(out_file, src, target)
+
+    src = "{lllll}"
+    target = "{clccc}"
+    replace_string_in_file(out_file, src, target)
+
+    src = "%"
+    target = "\%"
+    replace_string_in_file(out_file, src, target)
+
+    src = "energy/+pnml"
+    target = "Energy/+pNML"
+    replace_string_in_file(out_file, src, target)
+
+    src = "IND & OOD &          Energy/+pNML &          Energy/+pNML &          Energy/+pNML \\\\"
+    target = ""
+    replace_string_in_file(out_file, src, target)
+
+    src = '\midrule'
+    target =  " \midrule & & \multicolumn{3}{c}{Energy/+pNML} \\\\ \cmidrule{3-5} "
+    replace_string_in_file(out_file, src, target)
+
 def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     # Change columns order such that pNML is thf first one
     cols = df_metric.columns.tolist()
@@ -14,9 +71,10 @@ def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     df_metric = df_metric[cols]
 
     # Bold the highest value
+    df_metric = df_metric.round(1)
     idx_maxs = df_metric.idxmax(axis=1)
-    df_bold = df_metric.applymap(lambda x: '{:.2f}'.format(x))
-    df_bold = df_bold.applymap(lambda x: "100.0" if x == "100.00" else x)
+    df_bold = df_metric.applymap(lambda x: '{:.1f}'.format(x))
+    df_bold = df_bold.applymap(lambda x: "100" if x == "100.0" else x)
     for loc, col in idx_maxs.items():
         value = df_bold.loc[loc][col]
         df_bold.at[loc, col] = "\textbf{{{}}}".format(value)
@@ -27,16 +85,15 @@ def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     # Prepare latex table
     series = df_bold[f"{metric}_{method}"] + " / " + df_bold[f"{metric}_pnml"]
     df_for_latex = pd.DataFrame(
-        {f"{method}/+pNML": series.values},
+        {f"{method}/+pnml": series.values},
         index=[[ind_name] * len(series.index), series.index],
     )
     df_for_latex = df_for_latex.rename_axis(("IND", "OOD"))
     df_for_latex = df_for_latex.rename(index={"cifar10": "CIFAR-10", "cifar100": "CIFAR-100", "svhn": "SVHN"})
-    df_for_latex = df_for_latex.rename(str.capitalize, axis='columns')
     return df_for_latex
 
 
-def load_csv_results(csv_path: str, ind_name: str) -> pd.DataFrame:
+def load_csv_results(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     df = df.replace({"LSUN": "LSUN (C)",
                      "LSUN_resize": "LSUN (R)",
@@ -55,7 +112,7 @@ def load_latest_results(output_path, method, model_name, ind_name) -> pd:
 
     # Get most recent
     csv_path = csvs[-1]
-    df_csv = load_csv_results(csv_path, ind_name)
+    df_csv = load_csv_results(csv_path)
     return df_csv
 
 
@@ -94,8 +151,10 @@ def create_tables():
             print(df)
 
             # Save table
-            df.to_latex(osp.join(output_path, f"{metric}_{model_name}.tex"),
+            out_path = osp.join(output_path, f"{metric}_{model_name}.tex")
+            df.to_latex(out_path,
                         index=True, na_rep="", multirow=True, escape=False)
+            manipulate_output_file(out_path)
 
     methods = ["energy"]
     model_name = "wrn"
@@ -106,12 +165,13 @@ def create_tables():
     for metric in metrics:
         df = create_performance_df(methods, model_name, ind_names, metric, output_path)
         df_metrics.append(df)
-    df = pd.concat(df_metrics, axis=0)
-    print(df.head(3))
+    df = pd.concat(df_metrics, axis=1,keys=metrics)
 
     # Save table
-    df.to_latex(osp.join(output_path, f"{model_name}.tex"),
+    out_path = osp.join(output_path, f"{model_name}.tex")
+    df.to_latex(out_path,
                 index=True, na_rep="", multirow=True, escape=False, sparsify=True)
+    manipulate_output_file(out_path)
 
 
 if __name__ == "__main__":

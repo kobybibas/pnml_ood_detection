@@ -131,7 +131,7 @@ def get_best_odin_results(ood_names: list, results_dict: dict) -> (pd.DataFrame,
             baseline_best_auroc, baseline_best_temperature, baseline_best_epsilon))
         logger.info('pnml: [AUROC epsilon temperature]=[{:.2f} {} {}]'.format(
             pnml_best_auroc, pnml_best_epsilon, pnml_best_temperature))
-        logger.info()
+        logger.info('')
 
         baseline_best_results.append(baseline_ood_best_results)
         pnml_best_results.append(pnml_ood_best_results)

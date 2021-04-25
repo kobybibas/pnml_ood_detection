@@ -64,7 +64,7 @@ def run_experiment(cfg: DictConfig):
                          fast_dev_run=cfg.dev_run,
                          num_sanity_val_steps=0,
                          checkpoint_callback=False,
-                         max_epochs=1,
+                         max_epochs=1, amp_level='O2',
                          default_root_dir=out_dir)
 
     # Execute method

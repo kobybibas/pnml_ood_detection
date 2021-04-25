@@ -50,12 +50,14 @@ class LitGram(LitBaseline):
         self.gram_mins = {c: [None] * num_layers for c in range(num_labels)}
         for c in range(num_labels):
             for l in range(num_layers):
+                # [batch,powers,values]
                 mins_bathces = [gram_mins_batch[c][l] for gram_mins_batch in gram_mins_batches if c in gram_mins_batch]
                 self.gram_mins[c][l] = torch.vstack(mins_bathces).min(dim=0).values
 
         self.gram_maxs = {c: [None] * num_layers for c in range(num_labels)}
         for c in range(num_labels):
             for l in range(num_layers):
+                # [batch,powers,values]
                 maxs_batches = [gram_maxs_batch[c][l] for gram_maxs_batch in gram_maxs_batches if c in gram_maxs_batch]
                 self.gram_maxs[c][l] = torch.vstack(maxs_batches).max(dim=0).values
 
@@ -98,31 +100,43 @@ class LitGram(LitBaseline):
                 ind_features_test = self.ind_features[test_indices]
                 ind_probs_normalized_test = self.ind_probs_normalized[test_indices]
 
-                # Compute Gram
-                dev_norm_sum = ind_deviations_val.sum(dim=0, keepdims=True) + 10 ** -7
-                ind_deviations_norm = (ind_deviations_test / dev_norm_sum).mean(dim=1)
-                ood_deviations_norm = (ood_deviations / dev_norm_sum).mean(dim=1)
-                baseline_res = calc_metrics_transformed(-ind_deviations_norm.cpu().numpy(),
-                                                        -ood_deviations_norm.cpu().numpy())
-                # Compute pNML
-                dev_norm_std = ind_deviations_val.std(dim=0, keepdims=True)
-                dev_norm_std[dev_norm_std == 0.0] = 1.0
-                ind_deviations_norm = torch.sqrt((ind_deviations_test / dev_norm_std).mean(dim=1, keepdims=True))
-                ood_deviations_norm = torch.sqrt((ood_deviations / dev_norm_std).mean(dim=1, keepdims=True))
+                baseline_res = self.execute_score_gram(ind_deviations_val, ind_deviations_test, ood_deviations)
+                pnml_res = self.execute_score_pnml_gram(ind_deviations_val, ind_deviations_test, ood_deviations,
+                                                        ind_features_test, ood_features,
+                                                        ind_probs_normalized_test, ood_probs_normalized)
 
-                ind_regrets = self.calc_regrets(ind_features_test * ind_deviations_norm,
-                                                ind_probs_normalized_test).cpu().numpy()
-                ood_regrets = self.calc_regrets(ood_features * ood_deviations_norm,
-                                                ood_probs_normalized).cpu().numpy()
-                pnml_res = calc_metrics_transformed(1 - ind_regrets, 1 - ood_regrets)
-
-                # Save this split results
                 baseline_res_list.append(baseline_res)
                 pnml_res_list.append(pnml_res)
 
-            if self.is_save_scores is True:
-                self.baseline_res = compute_list_of_dict_mean(baseline_res_list)
-                self.pnml_res = compute_list_of_dict_mean(pnml_res_list)
+            self.baseline_res = compute_list_of_dict_mean(baseline_res_list)
+            self.pnml_res = compute_list_of_dict_mean(pnml_res_list)
+
+    def execute_score_gram(self, ind_deviations_val, ind_deviations_test, ood_deviations):
+        dev_norm_sum = ind_deviations_val.sum(dim=0, keepdims=True) + 10 ** -7
+        ind_deviations_norm = (ind_deviations_test / dev_norm_sum).mean(dim=1)
+        ood_deviations_norm = (ood_deviations / dev_norm_sum).mean(dim=1)
+        baseline_res = calc_metrics_transformed(-ind_deviations_norm.cpu().numpy(),
+                                                -ood_deviations_norm.cpu().numpy())
+
+        return baseline_res
+
+    def execute_score_pnml_gram(self, ind_deviations_val, ind_deviations_test, ood_deviations,
+                                ind_features_test, ood_features,
+                                ind_probs_normalized_test, ood_probs_normalized):
+
+        # Compute pNML
+        dev_norm_std = ind_deviations_val.std(dim=0, keepdims=True)
+        dev_norm_std[dev_norm_std == 0.0] = 1.0
+        ind_deviations_norm = torch.sqrt((ind_deviations_test / dev_norm_std).mean(dim=1, keepdims=True))
+        ood_deviations_norm = torch.sqrt((ood_deviations / dev_norm_std).mean(dim=1, keepdims=True))
+
+        ind_regrets = self.calc_regrets(ind_features_test * ind_deviations_norm,
+                                        ind_probs_normalized_test).cpu().numpy()
+        ood_regrets = self.calc_regrets(ood_features * ood_deviations_norm,
+                                        ood_probs_normalized).cpu().numpy()
+        pnml_res = calc_metrics_transformed(1 - ind_regrets, 1 - ood_regrets)
+
+        return pnml_res
 
 
 def compute_minmaxs_train(gram_feature_layers, probs):
@@ -168,11 +182,6 @@ def compute_deviations(gram_feature_layers, probs, gram_mins, gram_maxs):
         class_idxs = torch.where(c == predictions)[0]
         gram_features_per_class = [gram_feature_layer[class_idxs] for gram_feature_layer in gram_feature_layers]
         max_probs_c = max_probs[predictions == c]
-
-        if c not in gram_mins or c not in gram_maxs:
-            logger.warning(f'label {c} is not in training mins and maxs')
-            logger.warning(f'gram_mins: {gram_mins.keys()}')
-            logger.warning(f'gram_maxs: {gram_maxs.keys()}')
 
         deviations_c = get_deviations(gram_features_per_class, mins=gram_mins[c], maxs=gram_maxs[c])
         deviations_c /= max_probs_c.to(deviations_c.device).unsqueeze(1)

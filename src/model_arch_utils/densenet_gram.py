@@ -57,7 +57,7 @@ class BottleneckBlock(nn.Module):
 
     def record(self, t):
         feature = gram_record(t, self.collecting)
-        return self.gram_feats.append(feature)
+        self.gram_feats.append(feature)
 
     def reset(self):
         self.gram_feats = []
@@ -85,7 +85,7 @@ class TransitionBlock(nn.Module):
 
     def record(self, t):
         feature = gram_record(t, self.collecting)
-        return self.gram_feats.append(feature)
+        self.gram_feats.append(feature)
 
     def reset(self):
         self.gram_feats = []
@@ -112,7 +112,7 @@ class DenseBlock(nn.Module):
 
     def record(self, t):
         feature = gram_record(t, self.collecting)
-        return self.gram_feats.append(feature)
+        self.gram_feats.append(feature)
 
     def reset(self):
         self.gram_feats = []
