@@ -1,6 +1,9 @@
 # OOD Detection
-
-Install requirements:
+Load conda environment
+```bash
+conda env create -f environment.yml
+```
+or install requirements:
 ```bash
 while read requirement; conda install --yes $requirement;or pip install $requirement; end < requirements.txt
 ```
@@ -26,3 +29,10 @@ cd bash_scripts
 chmod 777 ./execute_methods.sh
 ./execute_methods.sh
 ```
+
+Create paper's tables
+```bash
+cd src
+python main main_create_tables.py
+```
+

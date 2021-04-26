@@ -1,8 +1,7 @@
 #!/bin/bash
 
 declare -a trainsets=("cifar10" "cifar100" "svhn")
-#declare -a methods=("baseline" "odin" "gram")
-declare -a methods=("gram")
+declare -a methods=("baseline" "odin" "gram")
 declare -a models=("densenet" "resnet")
 
 cd ../src || exit
@@ -25,12 +24,12 @@ for trainset in ${trainsets[@]}; do
   done
 done
 
-## Energy method
-#method="energy"
-#declare -a trainsets=("cifar10" "cifar100")
-#model="wrn"
-#
-#for trainset in ${trainsets[@]}; do
-#  echo $method $model $trainset
-#  python main_execute_method.py method=$method model=$model trainset=$trainset
-#done
+# Energy method
+method="energy"
+declare -a trainsets=("cifar10" "cifar100")
+model="wrn"
+
+for trainset in ${trainsets[@]}; do
+  echo $method $model $trainset
+  python main_execute_method.py method=$method model=$model trainset=$trainset
+done

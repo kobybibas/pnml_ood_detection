@@ -51,14 +51,16 @@ class LitGram(LitBaseline):
         for c in range(num_labels):
             for l in range(num_layers):
                 # [batch,powers,values]
-                mins_bathces = [gram_mins_batch[c][l] for gram_mins_batch in gram_mins_batches if c in gram_mins_batch]
+                mins_bathces = [gram_mins_batch[c][l].unsqueeze(0) for gram_mins_batch in gram_mins_batches if
+                                c in gram_mins_batch]
                 self.gram_mins[c][l] = torch.vstack(mins_bathces).min(dim=0).values
 
         self.gram_maxs = {c: [None] * num_layers for c in range(num_labels)}
         for c in range(num_labels):
             for l in range(num_layers):
                 # [batch,powers,values]
-                maxs_batches = [gram_maxs_batch[c][l] for gram_maxs_batch in gram_maxs_batches if c in gram_maxs_batch]
+                maxs_batches = [gram_maxs_batch[c][l].unsqueeze(0) for gram_maxs_batch in gram_maxs_batches if
+                                c in gram_maxs_batch]
                 self.gram_maxs[c][l] = torch.vstack(maxs_batches).max(dim=0).values
 
     def test_step(self, batch, batch_idx):

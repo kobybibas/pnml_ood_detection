@@ -1,6 +1,7 @@
 import logging
 import os.path as osp
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -36,6 +37,8 @@ class LitBaseline(pl.LightningModule):
 
         self.validation_size = 0
         self.out_dir = out_dir
+
+        self.pinv_rcond = 1e-15  # default
 
     def set_validation_size(self, validation_size: int):
         self.validation_size = validation_size
@@ -91,9 +94,20 @@ class LitBaseline(pl.LightningModule):
         # Calc regrets
         x_t_x = torch.matmul(features.t(), features)
         _, s, _ = torch.linalg.svd(x_t_x, compute_uv=False)
-        logger.info(f'Training set smallest singular values: {s[-10:]}')
+        logger.info(f'Training set singular values largest: {s[:5]}')
+        logger.info(f'Training set singular values smallest: {s[-5:]}')
         # self.x_t_x_inv = torch.linalg.inv(x_t_x) if s[-1] > 1e-16 else torch.linalg.pinv(x_t_x, hermitian=True)
-        self.x_t_x_inv = torch.linalg.pinv(x_t_x)
+        self.x_t_x = x_t_x
+        self.x_t_x_inv = torch.linalg.pinv(self.x_t_x, hermitian=False, rcond=self.pinv_rcond)
+
+        # Plot svd
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(s.cpu(), '*')
+        ax.set_xlabel('Singular value number')
+        ax.set_yscale('log')
+        ax.grid()
+        plt.savefig(osp.join(self.out_dir, 'svd.jpg'))
+        plt.close(fig)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -139,8 +153,10 @@ class LitBaseline(pl.LightningModule):
 
     def calc_regrets(self, features: torch.Tensor, probs: torch.Tensor) -> torch.Tensor:
         device = features.device
+        self.x_t_x_inv = self.x_t_x_inv.type_as(features)
+        self.x_t_x_inv.to(device)
 
-        x_proj = torch.matmul(torch.matmul(features.unsqueeze(1), self.x_t_x_inv.to(device)),
+        x_proj = torch.matmul(torch.matmul(features.unsqueeze(1), self.x_t_x_inv),
                               features.unsqueeze(-1))
         x_proj = x_proj.squeeze(-1)
         x_t_g = x_proj / (1 + x_proj)
@@ -150,4 +166,6 @@ class LitBaseline(pl.LightningModule):
         n_classes = probs.shape[-1]
         nf = torch.sum(probs / (probs + (1 - probs) * (probs ** x_t_g)), dim=-1)
         regrets = torch.log(nf) / torch.log(torch.tensor(n_classes))
+
+        # max_probs = (probs / nf.unsqueeze(1)).max(dim=-1).values
         return regrets
