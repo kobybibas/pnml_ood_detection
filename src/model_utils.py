@@ -1,6 +1,7 @@
 import logging
 import sys
 import warnings
+from glob import glob
 
 import torch
 from torch.serialization import SourceChangeWarning
@@ -85,4 +86,15 @@ def get_energy_model(model_name: str, trainset_name: str, is_pretrained: bool = 
         path = f'../models/{trainset_name}_{model_name}_s1_energy_ft_epoch_9.pt'
         logger.info(f'Load pretrained model: {path}')
         model.load_state_dict(torch.load(path))
+    return model
+
+
+def get_oecc_model(model_name: str, trainset_name: str, is_pretrained: bool = True) -> torch.nn.Module:
+    model = get_gram_model(model_name, trainset_name, is_pretrained=False)
+
+    if is_pretrained is True:
+        model_name = 'ResNet34' if model_name == 'resnet' else model_name
+        path = glob(f'../models/Zero_Shot_{trainset_name}_{model_name}_OECC_tune_epoch_*.pth')[0]
+        logger.info(f'Load pretrained model: {path}')
+        model.load(path)
     return model

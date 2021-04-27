@@ -1,7 +1,7 @@
 #!/bin/bash
 
 declare -a trainsets=("cifar10" "cifar100" "svhn")
-declare -a methods=("baseline" "odin" "gram")
+declare -a methods=("baseline" "odin" "gram" "oecc")
 declare -a models=("densenet" "resnet")
 
 cd ../src || exit

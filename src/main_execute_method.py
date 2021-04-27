@@ -15,6 +15,7 @@ from lit_utils.baseline_lit_utils import LitBaseline
 from lit_utils.energy_lit_utils import LitEnergy
 from lit_utils.gram_lit_utils import LitGram
 from lit_utils.odin_lit_utils import LitOdin
+from lit_utils.oecc_lit_utils import LitOecc
 from method_utils import execute_baseline, execute_odin
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,9 @@ def run_experiment(cfg: DictConfig):
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
     elif cfg.method == 'energy':
         lit_model_h = LitEnergy(cfg.model, cfg.trainset, out_dir)
+        baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
+    elif cfg.method == 'oecc':
+        lit_model_h = LitOecc(cfg.model, cfg.trainset, out_dir)
         baseline_df, pnml_df = execute_baseline(cfg, lit_model_h, trainer, loaders_dict)
     else:
         raise ValueError(f'method={cfg.method} is not supported')

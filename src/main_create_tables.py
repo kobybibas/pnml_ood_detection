@@ -1,8 +1,10 @@
 import fileinput
+import os
 import os.path as osp
 import sys
 from glob import glob
 
+import numpy as np
 import pandas as pd
 
 sys.path.append("../src")
@@ -12,7 +14,6 @@ def replace_string_in_file(file_path: str, src: str, target: str):
     with fileinput.FileInput(file_path, inplace=True) as file:
         for line in file:
             print(line.replace(src, target), end='')
-
 
 
 def manipulate_output_file(out_file):
@@ -28,6 +29,10 @@ def manipulate_output_file(out_file):
     target = "Gram/+pNML"
     replace_string_in_file(out_file, src, target)
 
+    src = "oecc/+pnml"
+    target = "OECC/+pNML"
+    replace_string_in_file(out_file, src, target)
+
     src = "     &           &"
     target = "IND & OOD &"
     replace_string_in_file(out_file, src, target)
@@ -36,16 +41,16 @@ def manipulate_output_file(out_file):
     target = "IND & OOD &"
     replace_string_in_file(out_file, src, target)
 
-    src = "IND & OOD &                       &                       &                       \\\\"
+    src = "IND & OOD &                       &                       &                       &                       \\\\"
     target = ""
     replace_string_in_file(out_file, src, target)
 
-    src = "\cline{1-5}"
+    src = "\cline{1-6}"
     target = "\midrule"
     replace_string_in_file(out_file, src, target)
 
-    src = "{lllll}"
-    target = "{clccc}"
+    src = "{llllll}"
+    target = "{clcccc}"
     replace_string_in_file(out_file, src, target)
 
     src = "%"
@@ -60,9 +65,6 @@ def manipulate_output_file(out_file):
     target = ""
     replace_string_in_file(out_file, src, target)
 
-    src = '\midrule'
-    target =  " \midrule & & \multicolumn{3}{c}{Energy/+pNML} \\\\ \cmidrule{3-5} "
-    replace_string_in_file(out_file, src, target)
 
 def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     # Change columns order such that pNML is thf first one
@@ -111,6 +113,7 @@ def load_latest_results(output_path, method, model_name, ind_name) -> pd:
     csvs = sorted(glob(osp.join(output_path, f"{method}_{model_name}_{ind_name}_*", "performance.csv")))
 
     # Get most recent
+    print(f'{method} {model_name} {ind_name}')
     csv_path = csvs[-1]
     df_csv = load_csv_results(csv_path)
     return df_csv
@@ -138,20 +141,22 @@ def create_performance_df(methods, model_name, ind_names, metric, output_path) -
 
 
 def create_tables():
-    methods = ["baseline", "odin", "gram"]
+    methods = ["baseline", "odin", "gram", "oecc"]
     model_names = ["densenet", "resnet"]
     ind_names = ["cifar10", "cifar100", "svhn"]
     metrics = ["AUROC", "TNR at TPR 95%", "Detection Acc."]
 
-    output_path = "../outputs"
+    performance_path = "../outputs/"
+    output_path = "../outputs/tables"
+    os.makedirs(output_path, exist_ok=True)
 
     for metric in metrics:
         for model_name in model_names:
-            df = create_performance_df(methods, model_name, ind_names, metric, output_path)
+            df = create_performance_df(methods, model_name, ind_names, metric, performance_path)
             print(df)
 
             # Save table
-            out_path = osp.join(output_path, f"{metric}_{model_name}.tex")
+            out_path = osp.join(output_path, f"{metric.replace(' ', '').replace('%', '')}_{model_name}.tex")
             df.to_latex(out_path,
                         index=True, na_rep="", multirow=True, escape=False)
             manipulate_output_file(out_path)
@@ -163,15 +168,18 @@ def create_tables():
 
     df_metrics = []
     for metric in metrics:
-        df = create_performance_df(methods, model_name, ind_names, metric, output_path)
+        df = create_performance_df(methods, model_name, ind_names, metric, performance_path)
         df_metrics.append(df)
-    df = pd.concat(df_metrics, axis=1,keys=metrics)
+    df = pd.concat(df_metrics, axis=1, keys=metrics)
 
     # Save table
     out_path = osp.join(output_path, f"{model_name}.tex")
     df.to_latex(out_path,
                 index=True, na_rep="", multirow=True, escape=False, sparsify=True)
     manipulate_output_file(out_path)
+    src = '\midrule'
+    target = " \midrule & & \multicolumn{3}{c}{Energy/+pNML} \\\\ \cmidrule{3-5} "
+    replace_string_in_file(out_path, src, target)
 
 
 if __name__ == "__main__":
