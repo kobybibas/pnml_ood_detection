@@ -109,6 +109,8 @@ class LitBaseline(pl.LightningModule):
         plt.savefig(osp.join(self.out_dir, 'svd.jpg'))
         plt.close(fig)
 
+        torch.save(s, osp.join(self.out_dir, 'singular_values.pt'))
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         logits, features, logits_w_norm_features = self.forward(x)
