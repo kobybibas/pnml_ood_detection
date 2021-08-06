@@ -13,7 +13,7 @@ sys.path.append("../src")
 def replace_string_in_file(file_path: str, src: str, target: str):
     with fileinput.FileInput(file_path, inplace=True) as file:
         for line in file:
-            print(line.replace(src, target), end='')
+            print(line.replace(src, target), end="")
 
 
 def manipulate_output_file(out_file):
@@ -75,7 +75,7 @@ def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     # Bold the highest value
     df_metric = df_metric.round(1)
     idx_maxs = df_metric.idxmax(axis=1)
-    df_bold = df_metric.applymap(lambda x: '{:.1f}'.format(x))
+    df_bold = df_metric.applymap(lambda x: "{:.1f}".format(x))
     df_bold = df_bold.applymap(lambda x: "100" if x == "100.0" else x)
     for loc, col in idx_maxs.items():
         value = df_bold.loc[loc][col]
@@ -91,35 +91,49 @@ def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
         index=[[ind_name] * len(series.index), series.index],
     )
     df_for_latex = df_for_latex.rename_axis(("IND", "OOD"))
-    df_for_latex = df_for_latex.rename(index={"cifar10": "CIFAR-10", "cifar100": "CIFAR-100", "svhn": "SVHN"})
+    df_for_latex = df_for_latex.rename(
+        index={"cifar10": "CIFAR-10", "cifar100": "CIFAR-100", "svhn": "SVHN"}
+    )
     return df_for_latex
 
 
 def load_csv_results(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
-    df = df.replace({"LSUN": "LSUN (C)",
-                     "LSUN_resize": "LSUN (R)",
-                     "Imagenet_resize": "Imagenet (R)",
-                     "Imagenet": "Imagenet (C)",
-                     "cifar10": "CIFAR-10",
-                     "cifar100": "CIFAR-100",
-                     "svhn": "SVHN"})
+    df = df.replace(
+        {
+            "LSUN": "LSUN (C)",
+            "LSUN_resize": "LSUN (R)",
+            "Imagenet_resize": "Imagenet (R)",
+            "Imagenet": "Imagenet (C)",
+            "cifar10": "CIFAR-10",
+            "cifar100": "CIFAR-100",
+            "svhn": "SVHN",
+        }
+    )
     df = df.set_index("ood_name")
 
     return df
 
 
 def load_latest_results(output_path, method, model_name, ind_name) -> pd:
-    csvs = sorted(glob(osp.join(output_path, f"{method}_{model_name}_{ind_name}_*", "performance.csv")))
+    csvs = sorted(
+        glob(
+            osp.join(
+                output_path, f"{method}_{model_name}_{ind_name}_*", "performance.csv"
+            )
+        )
+    )
 
     # Get most recent
-    print(f'{method} {model_name} {ind_name}')
+    print(f"{method} {model_name} {ind_name}")
     csv_path = csvs[-1]
     df_csv = load_csv_results(csv_path)
     return df_csv
 
 
-def create_performance_df(methods, model_name, ind_names, metric, output_path) -> pd.DataFrame:
+def create_performance_df(
+    methods, model_name, ind_names, metric, output_path
+) -> pd.DataFrame:
     dfs_per_method = []
     for method in methods:
         dfs_per_ind = []
@@ -152,13 +166,17 @@ def create_tables():
 
     for metric in metrics:
         for model_name in model_names:
-            df = create_performance_df(methods, model_name, ind_names, metric, performance_path)
+            df = create_performance_df(
+                methods, model_name, ind_names, metric, performance_path
+            )
             print(df)
 
             # Save table
-            out_path = osp.join(output_path, f"{metric.replace(' ', '').replace('%', '')}_{model_name}.tex")
-            df.to_latex(out_path,
-                        index=True, na_rep="", multirow=True, escape=False)
+            out_path = osp.join(
+                output_path,
+                f"{metric.replace(' ', '').replace('%', '')}_{model_name}.tex",
+            )
+            df.to_latex(out_path, index=True, na_rep="", multirow=True, escape=False)
             manipulate_output_file(out_path)
 
     methods = ["energy"]
@@ -168,16 +186,19 @@ def create_tables():
 
     df_metrics = []
     for metric in metrics:
-        df = create_performance_df(methods, model_name, ind_names, metric, performance_path)
+        df = create_performance_df(
+            methods, model_name, ind_names, metric, performance_path
+        )
         df_metrics.append(df)
     df = pd.concat(df_metrics, axis=1, keys=metrics)
 
     # Save table
     out_path = osp.join(output_path, f"{model_name}.tex")
-    df.to_latex(out_path,
-                index=True, na_rep="", multirow=True, escape=False, sparsify=True)
+    df.to_latex(
+        out_path, index=True, na_rep="", multirow=True, escape=False, sparsify=True
+    )
     manipulate_output_file(out_path)
-    src = '\midrule'
+    src = "\midrule"
     target = " \midrule & & \multicolumn{3}{c}{Energy/+pNML} \\\\ \cmidrule{3-5} "
     replace_string_in_file(out_path, src, target)
 

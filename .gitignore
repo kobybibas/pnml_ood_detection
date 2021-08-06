@@ -2,7 +2,9 @@
 *.pth
 *.npy
 *.pt
-output/*
+outputs/*
+.vscode/*
+data/*
 
 # Created by https://www.gitignore.io/api/images
 # Edit at https://www.gitignore.io/?templates=images
@@ -75,8 +77,6 @@ output/*
 *.max
 
 # End of https://www.gitignore.io/api/images
-
-
 
 # Created by https://www.gitignore.io/api/git,macos,python,pycharm,jupyternotebooks
 # Edit at https://www.gitignore.io/?templates=git,macos,python,pycharm,jupyternotebooks

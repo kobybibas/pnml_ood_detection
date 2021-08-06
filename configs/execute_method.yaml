@@ -1,15 +1,14 @@
 # Project structure
-data_dir: ../data       # The directory that contains the datasets
-model_dir: ../models    # The directory that contains the trained model file
+data_dir: ../data # The directory that contains the datasets
+model_dir: ../models # The directory that contains the trained model file
 
 # Inference params
-model: densenet          # Model architecture name (densenet/resnet/wrn)
-trainset: cifar100       # The training set that was used to train the model (cifar10/cifar100/svhn)
-batch_size: 2048          # Batch size to use in the forward loop
-num_workers: 4           # Number of CPU workers
+model: densenet # Model architecture name (densenet/resnet/wrn)
+trainset: cifar100 # The training set that was used to train the model (cifar10/cifar100/svhn)
+batch_size: 2048 # Batch size to use in the forward loop
+num_workers: 4 # Number of CPU workers
 
-
-method: gram # baseline/gram/odin/cosine/energy
+method: baseline # baseline/gram/odin/cosine/energy
 
 # Flow
 dev_run: false
@@ -18,7 +17,6 @@ seed: 1234
 # Odin related (perturbations and temperatures)
 odin_vanilla_path: odin_vanilla/${model}_${trainset}.yaml
 odin_pnml_path: odin_pnml/${model}_${trainset}.yaml
-
 
 hydra:
   run:

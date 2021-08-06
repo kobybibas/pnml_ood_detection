@@ -1,4 +1,4 @@
-'''ResNet in PyTorch.
+"""ResNet in PyTorch.
 BasicBlock and Bottleneck module is from the original ResNet paper:
 [1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Deep Residual Learning for Image Recognition. arXiv:1512.03385
@@ -6,7 +6,7 @@ PreActBlock and PreActBottleneck module is from the later paper:
 [2] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
     Identity Mappings in Deep Residual Networks. arXiv:1603.05027
 Original code is from https://github.com/kuangliu/pytorch-cifar/blob/master/models/resnet.py
-'''
+"""
 import itertools
 
 import torch
@@ -17,7 +17,9 @@ from model_arch_utils.gram_model_utils import gram_record
 
 
 def conv3x3(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
 
 
 class BasicBlock(nn.Module):
@@ -33,8 +35,14 @@ class BasicBlock(nn.Module):
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion * planes)
+                nn.Conv2d(
+                    in_planes,
+                    self.expansion * planes,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(self.expansion * planes),
             )
 
         self.collecting = False
@@ -119,16 +127,22 @@ class ResNetGram(nn.Module):
         return self.features_out
 
     def set_collecting(self, is_collecting: bool):
-        for layer in itertools.chain(self.layer1, self.layer2, self.layer3, self.layer4):
+        for layer in itertools.chain(
+            self.layer1, self.layer2, self.layer3, self.layer4
+        ):
             layer.collecting = is_collecting
 
     def reset(self):
-        for layer in itertools.chain(self.layer1, self.layer2, self.layer3, self.layer4):
+        for layer in itertools.chain(
+            self.layer1, self.layer2, self.layer3, self.layer4
+        ):
             layer.reset()
 
     def collect_gram_features(self):
         gram_feats_all = []
-        for layer in itertools.chain(self.layer1, self.layer2, self.layer3, self.layer4):
+        for layer in itertools.chain(
+            self.layer1, self.layer2, self.layer3, self.layer4
+        ):
             gram_feats = layer.gram_feats
             gram_feats_all += gram_feats
         self.reset()
@@ -139,6 +153,6 @@ def ResNet34Gram(num_c):
     return ResNetGram(BasicBlock, [3, 4, 6, 3], num_classes=num_c)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = ResNet34Gram(10)
     model.set_collecting(True)

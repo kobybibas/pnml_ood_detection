@@ -14,14 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class LitBaseline(pl.LightningModule):
-
     def __init__(self, model_name: str, ind_name: str, out_dir: str):
         super().__init__()
         self.model_name = model_name
         self.ind_name = ind_name
         self.model = self.get_model()
         self.x_t_x_inv = None
-        self.w = self.model.fc if hasattr(self.model, 'fc') else self.model.linear
+        self.w = self.model.fc if hasattr(self.model, "fc") else self.model.linear
 
         # IND
         self.is_ind = True
@@ -29,7 +28,7 @@ class LitBaseline(pl.LightningModule):
         self.ind_regrets = None
 
         # OOD
-        self.ood_name = ''
+        self.ood_name = ""
 
         # Metrics
         self.baseline_res, self.pnml_res = None, None
@@ -42,12 +41,12 @@ class LitBaseline(pl.LightningModule):
 
     def set_validation_size(self, validation_size: int):
         self.validation_size = validation_size
-        logger.info(f'set_validation_size: validation_size={self.validation_size}')
+        logger.info(f"set_validation_size: validation_size={self.validation_size}")
 
     def set_ood(self, ood_name: str):
         self.ood_name = ood_name
         self.is_ind = ood_name == self.ind_name
-        logger.info(f'set_ood: ood_name={self.ood_name} is_ind={self.is_ind}')
+        logger.info(f"set_ood: ood_name={self.ood_name} is_ind={self.is_ind}")
 
     def get_model(self):
         return get_model(self.model_name, self.ind_name)
@@ -81,35 +80,42 @@ class LitBaseline(pl.LightningModule):
 
         y_hat = probs.argmax(dim=-1)
         is_correct = y_hat == y
-        output = {'probs': probs, 'probs_normalized': probs_normalized,
-                  'features': features, 'loss': loss, 'is_correct': is_correct,
-                  'logits': logits}
+        output = {
+            "probs": probs,
+            "probs_normalized": probs_normalized,
+            "features": features,
+            "loss": loss,
+            "is_correct": is_correct,
+            "logits": logits,
+        }
         return output
 
     def training_epoch_end(self, outputs):
-        features = torch.vstack([out['features'] for out in outputs])
-        acc = torch.hstack([out['is_correct'] for out in outputs]).float().mean() * 100
-        logger.info('\nTraining set acc {:.2f}%'.format(acc))
+        features = torch.vstack([out["features"] for out in outputs])
+        acc = torch.hstack([out["is_correct"] for out in outputs]).float().mean() * 100
+        logger.info("\nTraining set acc {:.2f}%".format(acc))
 
         # Calc regrets
         x_t_x = torch.matmul(features.t(), features)
         _, s, _ = torch.linalg.svd(x_t_x, compute_uv=False)
-        logger.info(f'Training set singular values largest: {s[:5]}')
-        logger.info(f'Training set singular values smallest: {s[-5:]}')
+        logger.info(f"Training set singular values largest: {s[:5]}")
+        logger.info(f"Training set singular values smallest: {s[-5:]}")
         # self.x_t_x_inv = torch.linalg.inv(x_t_x) if s[-1] > 1e-16 else torch.linalg.pinv(x_t_x, hermitian=True)
         self.x_t_x = x_t_x
-        self.x_t_x_inv = torch.linalg.pinv(self.x_t_x, hermitian=False, rcond=self.pinv_rcond)
+        self.x_t_x_inv = torch.linalg.pinv(
+            self.x_t_x, hermitian=False, rcond=self.pinv_rcond
+        )
 
         # Plot svd
         fig, ax = plt.subplots(1, 1)
-        ax.plot(s.cpu(), '*')
-        ax.set_xlabel('Singular value number')
-        ax.set_yscale('log')
+        ax.plot(s.cpu(), "*")
+        ax.set_xlabel("Singular value number")
+        ax.set_yscale("log")
         ax.grid()
-        plt.savefig(osp.join(self.out_dir, 'svd.jpg'))
+        plt.savefig(osp.join(self.out_dir, "svd.jpg"))
         plt.close(fig)
 
-        torch.save(s, osp.join(self.out_dir, 'singular_values.pt'))
+        torch.save(s, osp.join(self.out_dir, "singular_values.pt"))
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -120,22 +126,27 @@ class LitBaseline(pl.LightningModule):
         y_hat = probs.argmax(dim=-1)
         is_correct = y_hat == y
 
-        output = {'probs': probs, 'probs_normalized': probs_normalized, 'is_correct': is_correct,
-                  'features': features, 'logits': logits}
+        output = {
+            "probs": probs,
+            "probs_normalized": probs_normalized,
+            "is_correct": is_correct,
+            "features": features,
+            "logits": logits,
+        }
         return output
 
     def test_epoch_end(self, outputs):
-        probs = torch.vstack([out['probs'] for out in outputs])
-        probs_normalized = torch.vstack([out['probs_normalized'] for out in outputs])
-        features = torch.vstack([out['features'] for out in outputs])
-        acc = torch.hstack([out['is_correct'] for out in outputs]).float().mean() * 100
+        probs = torch.vstack([out["probs"] for out in outputs])
+        probs_normalized = torch.vstack([out["probs_normalized"] for out in outputs])
+        features = torch.vstack([out["features"] for out in outputs])
+        acc = torch.hstack([out["is_correct"] for out in outputs]).float().mean() * 100
 
         # Compute the normalization factor
         regrets = self.calc_regrets(features, probs_normalized).cpu().numpy()
         max_probs = torch.max(probs, dim=-1).values.cpu().numpy()
 
         if self.is_ind:
-            logger.info('\nValidation set acc {:.2f}%'.format(acc))
+            logger.info("\nValidation set acc {:.2f}%".format(acc))
 
             # Store IND scores
             self.ind_max_probs = max_probs
@@ -147,8 +158,12 @@ class LitBaseline(pl.LightningModule):
             self.pnml_res = calc_metrics_transformed(1 - self.ind_regrets, 1 - regrets)
 
         if self.is_save_scores is True:
-            np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_pnml_regret.txt'), regrets)
-            np.savetxt(osp.join(self.out_dir, f'{self.ood_name}_baseline.txt'), max_probs)
+            np.savetxt(
+                osp.join(self.out_dir, f"{self.ood_name}_pnml_regret.txt"), regrets
+            )
+            np.savetxt(
+                osp.join(self.out_dir, f"{self.ood_name}_baseline.txt"), max_probs
+            )
 
     def get_performance(self):
         return self.baseline_res, self.pnml_res
@@ -158,8 +173,9 @@ class LitBaseline(pl.LightningModule):
         self.x_t_x_inv = self.x_t_x_inv.type_as(features)
         self.x_t_x_inv.to(device)
 
-        x_proj = torch.matmul(torch.matmul(features.unsqueeze(1), self.x_t_x_inv),
-                              features.unsqueeze(-1))
+        x_proj = torch.matmul(
+            torch.matmul(features.unsqueeze(1), self.x_t_x_inv), features.unsqueeze(-1)
+        )
         x_proj = x_proj.squeeze(-1)
         x_t_g = x_proj / (1 + x_proj)
 

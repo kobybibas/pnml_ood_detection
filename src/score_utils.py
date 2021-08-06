@@ -65,12 +65,14 @@ def calc_regret_on_set(testset, probs, p_parallel, p_bot) -> np.ndarray:
     regrets = np.log(nfs) / np.log(n_classes)
 
     # pNML probability assignment
-    pnml_prediction = genie_predictions / np.repeat(np.expand_dims(nfs, -1), n_classes, axis=1)
+    pnml_prediction = genie_predictions / np.repeat(
+        np.expand_dims(nfs, -1), n_classes, axis=1
+    )
     return regrets, pnml_prediction
 
 
 def load_fc_layer(root: str):
-    w = np.load(osp.join(root, 'fc.npy'))
+    w = np.load(osp.join(root, "fc.npy"))
     return w
 
 
@@ -120,7 +122,9 @@ def calc_metrics_transformed(ind_score: np.ndarray, ood_score: np.ndarray) -> di
     metric_dict = calc_metrics(scores, labels)
     fpr, tpr, _ = roc_curve(labels, scores)
 
-    metric_dict_transformed = {'AUROC': 100 * metric_dict['auroc'],
-                               'TNR at TPR 95%': 100 * (1 - metric_dict['fpr_at_95_tpr']),
-                               'Detection Acc.': 100 * 0.5 * (tpr + 1 - fpr).max()}
+    metric_dict_transformed = {
+        "AUROC": 100 * metric_dict["auroc"],
+        "TNR at TPR 95%": 100 * (1 - metric_dict["fpr_at_95_tpr"]),
+        "Detection Acc.": 100 * 0.5 * (tpr + 1 - fpr).max(),
+    }
     return metric_dict_transformed

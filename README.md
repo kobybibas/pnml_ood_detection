@@ -5,7 +5,7 @@ conda env create -f environment.yml
 ```
 or install requirements:
 ```bash
-while read requirement; conda install --yes $requirement;or pip install $requirement; end < requirements.txt
+while read requirement; do conda install --yes $requirement || pip install $requirement; done < requirements.txt 
 ```
 
 ```bash

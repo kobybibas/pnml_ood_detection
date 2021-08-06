@@ -7,6 +7,5 @@ logger = logging.getLogger(__name__)
 
 
 class LitOecc(LitGram):
-
     def get_model(self):
         return get_oecc_model(self.model_name, self.ind_name)

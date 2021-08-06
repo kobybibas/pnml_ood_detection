@@ -1,2 +1,4 @@
 import sys
-sys.append('./model_arch_utils')
+
+sys.append("./model_arch_utils")
+

@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class LitOdin(LitBaseline):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.eps = 0.0
@@ -17,7 +16,7 @@ class LitOdin(LitBaseline):
     def set_odin_params(self, eps=0.0, temperature=1.0):
         self.eps = eps
         self.temperature = temperature
-        logger.info(f'set_odin_params: [eps temperature]=[{eps} {temperature}]')
+        logger.info(f"set_odin_params: [eps temperature]=[{eps} {temperature}]")
 
     def forward(self, x):
         self.model.eval()
@@ -25,9 +24,9 @@ class LitOdin(LitBaseline):
         # Fine-tune image
         if self.eps > 0.0:
             with torch.enable_grad():
-                x_perturbs = self.perturb_input(self.model, x,
-                                                self.eps, self.temperature,
-                                                self.model_name)
+                x_perturbs = self.perturb_input(
+                    self.model, x, self.eps, self.temperature, self.model_name
+                )
         else:
             x_perturbs = x
 
@@ -37,7 +36,9 @@ class LitOdin(LitBaseline):
         return logits, features, logits_w_norm_features
 
     @staticmethod
-    def perturb_input(model, images, epsilon: float, temperature: float, model_name: str):
+    def perturb_input(
+        model, images, epsilon: float, temperature: float, model_name: str
+    ):
         """
         Execute adversarial attack on the input image.
         :param model: pytorch model to use.
@@ -67,22 +68,40 @@ class LitOdin(LitBaseline):
         gradient = torch.ge(images.grad.data, 0)
         gradient = (gradient.float() - 0.5) * 2
 
-        if model_name == 'densenet':
-            gradient.index_copy_(1, torch.LongTensor([0]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([0]).cuda()) / (63.0 / 255.0))
-            gradient.index_copy_(1, torch.LongTensor([1]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([1]).cuda()) / (62.1 / 255.0))
-            gradient.index_copy_(1, torch.LongTensor([2]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([2]).cuda()) / (66.7 / 255.0))
-        elif model_name == 'resnet':
-            gradient.index_copy_(1, torch.LongTensor([0]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([0]).cuda()) / (0.2023))
-            gradient.index_copy_(1, torch.LongTensor([1]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([1]).cuda()) / (0.1994))
-            gradient.index_copy_(1, torch.LongTensor([2]).cuda(),
-                                 gradient.index_select(1, torch.LongTensor([2]).cuda()) / (0.2010))
+        if model_name == "densenet":
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([0]).cuda(),
+                gradient.index_select(1, torch.LongTensor([0]).cuda()) / (63.0 / 255.0),
+            )
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([1]).cuda(),
+                gradient.index_select(1, torch.LongTensor([1]).cuda()) / (62.1 / 255.0),
+            )
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([2]).cuda(),
+                gradient.index_select(1, torch.LongTensor([2]).cuda()) / (66.7 / 255.0),
+            )
+        elif model_name == "resnet":
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([0]).cuda(),
+                gradient.index_select(1, torch.LongTensor([0]).cuda()) / (0.2023),
+            )
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([1]).cuda(),
+                gradient.index_select(1, torch.LongTensor([1]).cuda()) / (0.1994),
+            )
+            gradient.index_copy_(
+                1,
+                torch.LongTensor([2]).cuda(),
+                gradient.index_select(1, torch.LongTensor([2]).cuda()) / (0.2010),
+            )
         else:
-            raise ValueError(f'{model_name} is not supported')
+            raise ValueError(f"{model_name} is not supported")
 
         # Adding small perturbations to images
         image_perturbs = torch.add(images.data, -gradient, alpha=epsilon)
