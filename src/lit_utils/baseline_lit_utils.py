@@ -1,5 +1,6 @@
 import logging
 import os.path as osp
+from time import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +27,7 @@ class LitBaseline(pl.LightningModule):
         self.is_ind = True
         self.ind_max_probs = None
         self.ind_regrets = None
+        self.avg_train_norm = 0
 
         # OOD
         self.ood_name = ""
@@ -65,7 +67,7 @@ class LitBaseline(pl.LightningModule):
             logits = self.model(x)
             features = self.model.get_features()
             norm = torch.linalg.norm(features, dim=-1, keepdim=True)
-            features = features / norm
+            features = features / norm if self.is_norm_features else features
 
             # Forward with feature normalization
             logits_w_norm_features = self.w(features)
@@ -87,15 +89,21 @@ class LitBaseline(pl.LightningModule):
             "loss": loss,
             "is_correct": is_correct,
             "logits": logits,
+            "norms": torch.linalg.norm(features, dim=-1),
         }
         return output
 
     def training_epoch_end(self, outputs):
         features = torch.vstack([out["features"] for out in outputs])
         acc = torch.hstack([out["is_correct"] for out in outputs]).float().mean() * 100
+        norm = torch.hstack([out["norms"] for out in outputs]).float().mean()
+        self.avg_train_norm = norm
+
         logger.info("\nTraining set acc {:.2f}%".format(acc))
+        logger.info("\nTraining set avg norm {:.2f}".format(norm))
 
         # Calc regrets
+        t0 = time()
         x_t_x = torch.matmul(features.t(), features)
         _, s, _ = torch.linalg.svd(x_t_x, compute_uv=False)
         logger.info(f"Training set singular values largest: {s[:5]}")
@@ -105,6 +113,7 @@ class LitBaseline(pl.LightningModule):
         self.x_t_x_inv = torch.linalg.pinv(
             self.x_t_x, hermitian=False, rcond=self.pinv_rcond
         )
+        logger.info(f"Finish inv in {time() -t0 :.2f} sec")
 
         # Plot svd
         fig, ax = plt.subplots(1, 1)
@@ -132,6 +141,7 @@ class LitBaseline(pl.LightningModule):
             "is_correct": is_correct,
             "features": features,
             "logits": logits,
+            "norms": torch.linalg.norm(features, dim=-1),
         }
         return output
 
@@ -140,6 +150,7 @@ class LitBaseline(pl.LightningModule):
         probs_normalized = torch.vstack([out["probs_normalized"] for out in outputs])
         features = torch.vstack([out["features"] for out in outputs])
         acc = torch.hstack([out["is_correct"] for out in outputs]).float().mean() * 100
+        norm = torch.hstack([out["norms"] for out in outputs]).float().mean()
 
         # Compute the normalization factor
         regrets = self.calc_regrets(features, probs_normalized).cpu().numpy()
@@ -147,6 +158,7 @@ class LitBaseline(pl.LightningModule):
 
         if self.is_ind:
             logger.info("\nValidation set acc {:.2f}%".format(acc))
+            logger.info("\nValidation set avg norm {:.2f}".format(norm))
 
             # Store IND scores
             self.ind_max_probs = max_probs
@@ -154,6 +166,7 @@ class LitBaseline(pl.LightningModule):
 
         else:
             # Run evaluation on the OOD set
+            logger.info("\nOOD set avg norm {:.2f}".format(norm))
             self.baseline_res = calc_metrics_transformed(self.ind_max_probs, max_probs)
             self.pnml_res = calc_metrics_transformed(1 - self.ind_regrets, 1 - regrets)
 
@@ -173,17 +186,17 @@ class LitBaseline(pl.LightningModule):
         self.x_t_x_inv = self.x_t_x_inv.type_as(features)
         self.x_t_x_inv.to(device)
 
-        x_proj = torch.matmul(
-            torch.matmul(features.unsqueeze(1), self.x_t_x_inv), features.unsqueeze(-1)
+        x_proj = torch.abs(
+            torch.matmul(
+                torch.matmul(features.unsqueeze(1), self.x_t_x_inv),
+                features.unsqueeze(-1),
+            ).squeeze(-1)
         )
-        x_proj = x_proj.squeeze(-1)
         x_t_g = x_proj / (1 + x_proj)
 
-        # compute the normalization factor
+        # Compute the normalization factor
         probs = probs.to(device)
         n_classes = probs.shape[-1]
         nf = torch.sum(probs / (probs + (1 - probs) * (probs ** x_t_g)), dim=-1)
         regrets = torch.log(nf) / torch.log(torch.tensor(n_classes))
-
-        # max_probs = (probs / nf.unsqueeze(1)).max(dim=-1).values
         return regrets

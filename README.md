@@ -19,6 +19,26 @@ chmod 777 ./download_models.sh
 ./download_models.sh
 ```
 
+### Download imagenet30
+Follow https://github.com/alinlab/CSI
+
+Imagenet30 training set:
+https://drive.google.com/file/d/1B5c39Fc3haOPzlehzmpTLz6xLtGyKEy4/view
+
+Imagenet30 testing set:
+https://drive.google.com/file/d/13xzVuQMEhSnBRZr-YaaO08coLU2dxAUq/view
+
+Put and untar under ./data/Imagenet30
+```
+.
+├── README.md
+├── data
+│   ├── Imagenet30
+│   │   ├── one_class_test
+│   │   ├── one_class_test.tar
+│   │   ├── one_class_train
+│   │   └── one_class_train.tar
+```
 
 ## Execute methods
 
