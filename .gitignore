@@ -5,6 +5,8 @@
 outputs/*
 .vscode/*
 data/*
+outputs/*
+outputs
 
 # Created by https://www.gitignore.io/api/images
 # Edit at https://www.gitignore.io/?templates=images
