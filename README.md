@@ -1,10 +1,8 @@
 # Single Layer Predictive Normalized Maximum Likelihood for Out-of-Distribution Detection 
 https://arxiv.org/abs/2110.09246
 
-This is a fast and scalable approch for detecting out-of-dsitribution test samples.
+This is a fast and scalable approach for detecting out-of-distribution test samples.
 It can be applied to any pretrained model.
-
-
 
 # Pseudocode
 ```python
