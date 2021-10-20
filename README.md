@@ -30,8 +30,8 @@ for images, labels in testloader:
 ```
 
 # Paper results
-
-
+<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_low_dim_regret.jpg" alt="Regret for low dimentional data" width=600>
+<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_densenet-100_ood_results.jpg" alt="OOD detection result" width=600>
 
 # Run to code
 
