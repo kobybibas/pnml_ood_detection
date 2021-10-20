@@ -6,12 +6,12 @@ It can be applied to any pretrained model.
 
 # Pseudocode
 ```python
-# Assuming to have:trainloader, testloader, model with model.backbone and model.classifer methods
+# Assuming to have: trainloader, testloader, and model with model.backbone() and model.classifer() methods
 
-# Extract the features of the training set. Dimensions: training_size x num_features
+# Extract the training set features. Dimensions 2D matrix: training_size x num_features
 features = torch.vstack([model.backbone(images) for images, label in trainloader])
 
-# Compute the empirical correlation matrix inverse
+# Compute the training data empirical correlation matrix inverse
 x_t_x_inv = torch.linalg.inv(features.T @ features)
 
 # Calculate the regret: Large regret means out-of-distribution sample
