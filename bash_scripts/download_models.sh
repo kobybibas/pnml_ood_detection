@@ -20,3 +20,6 @@ rm wideresnet10.pth.tar.gz
 wget https://github.com/nazim1021/OOD-detection-using-OECC/blob/master/zeroshot_ood_experiments/results/Zero_Shot/Zero_Shot_cifar100_densenet_OECC_tune_epoch_9.pth?raw=true
 wget https://github.com/nazim1021/OOD-detection-using-OECC/blob/master/zeroshot_ood_experiments/results/Zero_Shot/Zero_Shot_cifar10_densenet_OECC_tune_epoch_14.pth?raw=true
 wget https://github.com/nazim1021/OOD-detection-using-OECC/blob/master/zeroshot_ood_experiments/results/Zero_Shot/Zero_Shot_svhn_densenet_OECC_tune_epoch_4.pth?raw=true
+
+wget https://github.com/wetliu/energy_ood/blob/master/CIFAR/snapshots/energy_ft/cifar100_wrn_s1_energy_ft_epoch_9.pt?raw=true
+wget https://github.com/wetliu/energy_ood/blob/master/CIFAR/snapshots/energy_ft/cifar10_wrn_s1_energy_ft_epoch_9.pt?raw=true

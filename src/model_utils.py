@@ -94,7 +94,9 @@ def get_energy_model(
         raise ValueError(f"model_name={model_name} is not supported")
 
     if is_pretrained is True:
-        path = f"../models/{trainset_name}_{model_name}_s1_energy_ft_epoch_9.pt"
+        path = glob(
+            f"../models/{trainset_name}_{model_name}_s1_energy_ft_epoch_9.pt*"
+        )[0]
         logger.info(f"Load pretrained model: {path}")
         model.load_state_dict(torch.load(path))
     return model
