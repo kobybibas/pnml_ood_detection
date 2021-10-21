@@ -67,7 +67,7 @@ class LitBaseline(pl.LightningModule):
             logits = self.model(x)
             features = self.model.get_features()
             norm = torch.linalg.norm(features, dim=-1, keepdim=True)
-            features = features / norm if self.is_norm_features else features
+            features = features / norm
 
             # Forward with feature normalization
             logits_w_norm_features = self.w(features)

@@ -256,16 +256,6 @@ def get_dataloaders(
     trainloader_svhn, testloader_svhn = get_svhn_loaders(
         data_transform, osj(root, "svhn"), batch_size, n_workers
     )
-    trainloader_imagenet30, testloader_imagenet30 = get_imagenet30_loaders(
-        data_transform, root, batch_size, n_workers
-    )
-
-    trainloader_dict = {
-        "cifar10": trainloader_cifar10,
-        "cifar100": trainloader_cifar100,
-        "svhn": trainloader_svhn,
-        "imagenet30": trainloader_imagenet30,
-    }
 
     # Load out of distribution datasets
     loaders_dict = {}
@@ -285,11 +275,34 @@ def get_dataloaders(
                 data_transform, osj(root, name), batch_size, n_workers
             )
 
-    loaders_dict["svhn"] = testloader_svhn
-    loaders_dict["cifar10"] = testloader_cifar10
-    loaders_dict["cifar100"] = testloader_cifar100
-    loaders_dict["imagenet30"] = testloader_imagenet30
-    loaders_dict["trainset"] = trainloader_dict[trainset_name]
+    if trainset_name == "imagenet30":
+        trainloader_imagenet30, testloader_imagenet30 = get_imagenet30_loaders(
+            data_transform, root, batch_size, n_workers
+        )
+        loaders_dict["trainset"] = trainloader_imagenet30
+        loaders_dict["imagenet30"] = testloader_imagenet30
+        loaders_dict["svhn"] = testloader_svhn
+        loaders_dict["cifar10"] = testloader_cifar10
+        loaders_dict["cifar100"] = testloader_cifar100
+
+    elif trainset_name == "svhn":
+        loaders_dict["trainset"] = trainloader_svhn
+        loaders_dict["svhn"] = testloader_svhn
+        loaders_dict["cifar10"] = testloader_cifar10
+        loaders_dict["cifar100"] = testloader_cifar100
+
+    elif trainset_name == "cifar100":
+        loaders_dict["trainset"] = trainloader_cifar100
+        loaders_dict["svhn"] = testloader_svhn
+        loaders_dict["cifar100"] = testloader_cifar100
+
+    elif trainset_name == "cifar10":
+        loaders_dict["trainset"] = trainloader_cifar10
+        loaders_dict["svhn"] = testloader_svhn
+        loaders_dict["cifar10"] = testloader_cifar10
+
+    else:
+        raise ValueError(f"trainset_name={trainset_name}")
 
     return loaders_dict
 
@@ -308,7 +321,10 @@ def get_cifar10_loaders(
     :return: train and test loaders along with mapping between labels and class names
     """
     trainset = datasets.CIFAR10(
-        root=data_dir, train=True, download=True, transform=data_transform,
+        root=data_dir,
+        train=True,
+        download=True,
+        transform=data_transform,
     )
     trainloader = data.DataLoader(
         trainset,
@@ -419,7 +435,8 @@ def get_imagenet30_loaders(
     :return: train and test loaders along with mapping between labels and class names
     """
     trainset = ImageFolder(
-        osp.join(data_dir, "Imagenet30", "one_class_train"), data_transform,
+        osp.join(data_dir, "Imagenet30", "one_class_train"),
+        data_transform,
     )
 
     trainloader = DataLoader(
@@ -431,7 +448,8 @@ def get_imagenet30_loaders(
     )
 
     testloader = ImageFolder(
-        osp.join(data_dir, "Imagenet30", "one_class_test"), data_transform,
+        osp.join(data_dir, "Imagenet30", "one_class_test"),
+        data_transform,
     )
 
     testloader = DataLoader(

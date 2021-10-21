@@ -1,4 +1,30 @@
 # Single Layer Predictive Normalized Maximum Likelihood for Out-of-Distribution Detection 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-7)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-7?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-5)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-5?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-4)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-4?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-1)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-1?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-2)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-2?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-3)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-3?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-8)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-8?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-100-vs-6)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-100-vs-6?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-8)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-8?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-6)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-6?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-5)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-5?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-4)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-4?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-3)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-3?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-9)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-9?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-2)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-2?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-cifar-10-vs-7)](https://paperswithcode.com/sota/out-of-distribution-detection-on-cifar-10-vs-7?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-4)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-4?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-5)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-5?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-3)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-3?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-1)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-1?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-isun)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-isun?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-lsun)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-lsun?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-lsun-1)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-lsun-1?p=single-layer-predictive-normalized-maximum)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/single-layer-predictive-normalized-maximum/out-of-distribution-detection-on-svhn-vs-2)](https://paperswithcode.com/sota/out-of-distribution-detection-on-svhn-vs-2?p=single-layer-predictive-normalized-maximum)
+
 https://arxiv.org/abs/2110.09246
 
 This is a fast and scalable approach for detecting out-of-distribution test samples.
@@ -10,6 +36,8 @@ It can be applied to any pretrained model.
 
 # Extract the training set features. Dimensions 2D matrix: training_size x num_features
 features = torch.vstack([model.backbone(images) for images, label in trainloader])
+norm = torch.linalg.norm(features, dim=-1, keepdim=True)
+features = features / norm
 
 # Compute the training data empirical correlation matrix inverse
 x_t_x_inv = torch.linalg.inv(features.T @ features)
@@ -19,29 +47,43 @@ for images, labels in testloader:
     features = model.backbone(images)
     probs = torch.softmax(model.classifier(features), dim=-1)
 
+    # Normalize
+    norm = torch.linalg.norm(features, dim=-1, keepdim=True)
+    features = features / norm
+
+    # Calc projection
     x_proj = features @ x_t_x_inv @ features.T
     xt_g = x_proj / (1 + x_proj)
 
-  # Equation 20
-    regrets = torch.sum(probs / (probs + (1 - probs) * probs ** xt_g),
-                        dim=-1)
+    # Equation 20
+    n_classes = probs.shape[-1]
+    nf = torch.sum(probs / (probs + (1 - probs) * (probs ** x_t_g)), dim=-1)
+    regrets = torch.log(nf) / torch.log(torch.tensor(n_classes))
 ```
 
 # Paper results
-<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_low_dim_regret.jpg" alt="Regret for low dimentional data" width=600>
-<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_densenet-100_ood_results.jpg" alt="OOD detection result" width=600>
+<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_low_dim_regret.jpg" alt="Regret for low dimentional data" width=550>
+<img src="https://github.com/kobybibas/pnml_ood_detection/blob/master/img_densenet.jpg" alt="OOD detection result" width=550>
 
 # Run to code
 
-Load conda environment
+Install requirements
 ```bash
-conda env create -f environment.yml
-```
-or install requirements:
-```bash
+# Create env
+conda create -n pnml_ood python=3.8.0 --yes
+conda activate pnml_ood
+
+# Install pip for fallback
+conda install --yes pip
+
+# Pytorch with GPU
+conda install pytorch==1.8.0 torchvision==0.9.0 cudatoolkit=10.2 -c pytorch --yes
+
+# All other: Install with conda. If package installation fails, install with pip.
 while read requirement; do conda install --yes $requirement || pip install $requirement; done < requirements.txt 
 ```
 
+Download data and models
 ```bash
 # Download OOD data
 cd bash_scripts
@@ -53,7 +95,7 @@ chmod 777 ./download_models.sh
 ./download_models.sh
 ```
 
-### Download imagenet30
+### Optional: Download imagenet30
 Follow https://github.com/alinlab/CSI
 
 Imagenet30 training set:
@@ -75,9 +117,13 @@ Put and untar under ./data/Imagenet30
 ```
 
 ## Execute methods
+Execute a single method. Our pNML method runs on-top of the executed method
+```bash
+cd src
+python main_execute_method.py model=densenet trainset=cifar100 method=baseline
+```
 
-Using the pretrained models, score ood detection
-
+Execute all methods
 ```bash
 cd bash_scripts
 chmod 777 ./execute_methods.sh
@@ -87,6 +133,5 @@ chmod 777 ./execute_methods.sh
 Create paper's tables
 ```bash
 cd src
-python main main_create_tables.py
+python main_create_tables.py
 ```
-
