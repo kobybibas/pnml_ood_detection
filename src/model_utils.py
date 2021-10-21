@@ -108,7 +108,7 @@ def get_oecc_model(
     if is_pretrained is True:
         model_name = "ResNet34" if model_name == "resnet" else model_name
         path = glob(
-            f"../models/Zero_Shot_{trainset_name}_{model_name}_OECC_tune_epoch_*.pth"
+            f"../models/Zero_Shot_{trainset_name}_{model_name}_OECC_tune_epoch_*.pt*"
         )[0]
         logger.info(f"Load pretrained model: {path}")
         model.load(path)
