@@ -3,12 +3,13 @@
 *.npy
 *.pt
 *.pt?raw=true
+*.pth?raw=true
 
 outputs/*
 .vscode/*
 data/*
 outputs/*
-outputsf
+outputs
 
 # Created by https://www.gitignore.io/api/images
 # Edit at https://www.gitignore.io/?templates=images
