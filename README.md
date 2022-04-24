@@ -139,11 +139,10 @@ python main_create_tables.py
 # Citing 
 If you use this code in your research or wish to refer to the baseline results, please use the following BibTeX entry.
 ```
-@article{bibas2021single,
+@inproceedings{bibas2021single,
   title={Single Layer Predictive Normalized Maximum Likelihood for Out-of-Distribution Detection},
   author={Bibas, Koby and Feder, Meir and Hassner, Tal},
-  journal={Advances in Neural Information Processing Systems},
-  volume={34},
+  booktitle={Advances in Neural Information Processing Systems},
   year={2021}
 }
 ```
