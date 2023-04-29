@@ -45,11 +45,13 @@ x_t_x_inv = torch.linalg.inv(features.T @ features)
 # Calculate the regret: Large regret means out-of-distribution sample
 for images, labels in testloader:
     features = model.backbone(images)
-    probs = torch.softmax(model.classifier(features), dim=-1)
 
     # Normalize
     norm = torch.linalg.norm(features, dim=-1, keepdim=True)
     features = features / norm
+    
+    # Get the probabilities of the normalized features
+    probs = torch.softmax(model.classifier(features), dim=-1)
 
     # Calc projection
     x_proj = features @ x_t_x_inv @ features.T
