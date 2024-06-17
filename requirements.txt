@@ -6,4 +6,4 @@ matplotlib==3.4.1
 hydra_core==1.0.4
 ood_metrics==0.2.9
 omegaconf==2.0.5
-scikit_learn==1.0.1
+scikit_learn==1.5.0
