@@ -79,7 +79,7 @@ def prepare_to_latex(df_metric, metric, method, ind_name) -> pd.DataFrame:
     df_bold = df_bold.applymap(lambda x: "100" if x == "100.0" else x)
     for loc, col in idx_maxs.items():
         value = df_bold.loc[loc][col]
-        df_bold.at[loc, col] = "\textbf{{{}}}".format(value)
+        df_bold.at[loc, col] = r"\textbf{{{}}}".format(value)
 
     # Change back to columns order
     df_bold = df_bold[cols[::-1]]
